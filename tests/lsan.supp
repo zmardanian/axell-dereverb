@@ -1,0 +1,4 @@
+# LeakSanitizer suppressions: one-time caches inside system libraries, not our code.
+leak:libfontconfig.so
+leak:libX11.so
+leak:libfreetype.so

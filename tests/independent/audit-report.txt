@@ -1,0 +1,25 @@
+PASS  @ 44100: measured latency (impulse peak) = reported latency: measured 2468, reported 2468
+PASS  @ 44100: silence in -> exactly silence out: max |y| 0
+PASS  @ 44100: REDUCTION 0 = the input delayed by the reported latency (full band): -250.4 dB
+PASS  @ 44100: host bypass = exactly the input, delayed by the reported latency: max error 0
+PASS  @ 48000: measured latency (impulse peak) = reported latency: measured 2560, reported 2560
+PASS  @ 48000: silence in -> exactly silence out: max |y| 0
+PASS  @ 48000: REDUCTION 0 = the input delayed by the reported latency (full band): -300.0 dB
+PASS  @ 48000: host bypass = exactly the input, delayed by the reported latency: max error 0
+PASS  @ 96000: measured latency (impulse peak) = reported latency: measured 5288, reported 5288
+PASS  @ 96000: silence in -> exactly silence out: max |y| 0
+PASS  @ 96000: REDUCTION 0 = the input delayed by the reported latency (full band): -202.1 dB
+PASS  @ 96000: host bypass = exactly the input, delayed by the reported latency: max error 0
+PASS  random host block sizes 1-4096 = 512-sample blocks: max diff 0
+PASS  LISTEN: processed + removed = the input: -158.3 dB
+PASS  all factory presets: finite and bounded: ok
+info  RT60 0.3 s room, synthetic voice: tail re phrase -38.8 -> -40.6 dB (dry voice -300.0 dB)
+PASS  RT60 0.3 s room, 3 real voices: the room after each phrase is at least 6 dB lower (default REDUCTION): tail re phrase: input -45.4 dB -> output -56.0 dB
+info  RT60 0.6 s room, synthetic voice: tail re phrase -25.3 -> -34.9 dB (dry voice -300.0 dB)
+PASS  RT60 0.6 s room, 3 real voices: the room after each phrase is at least 6 dB lower (default REDUCTION): tail re phrase: input -31.9 dB -> output -44.9 dB
+PASS  dry voice (synthetic, no room): left essentially untouched: SI-SDR 36.4 dB, largest octave-band change -0.2 dB
+PASS  dry voice (ARCTIC slt, no room): left essentially untouched: SI-SDR 32.8 dB, largest octave-band change -0.3 dB
+PASS  dry voice (ARCTIC bdl, no room): left essentially untouched: SI-SDR 27.8 dB, largest octave-band change -0.5 dB
+PASS  dry voice (ARCTIC jmk, no room): left essentially untouched: SI-SDR 27.9 dB, largest octave-band change -0.5 dB
+
+ALL PASS: 21 of 21 independent checks passed (13 s)

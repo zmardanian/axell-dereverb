@@ -1,0 +1,38 @@
+PASS  weights: Resources/dereverb.bin loads                                                                      1.0000   [1 .. 1]
+PASS  weights: a damaged file is refused (bad magic, truncated, NaN)                                             1.0000   [1 .. 1]
+PASS  parity with the trained PyTorch model: error re the reference output                                    -135.2398 dB  [-300 .. -100]
+PASS  REDUCTION 0: output = input delayed by the reported latency (random blocks 1-2048) @ 44.1 kHz           -292.2508 dB  [-400 .. -120]
+PASS  silence in -> silence out (max |y|) @ 44.1 kHz                                                             0.0000   [0 .. 0]
+PASS  NaN / Inf in: non-finite output samples @ 44.1 kHz                                                         0.0000   [0 .. 0]
+PASS  LISTEN: processed + removed = the input, full band (error re the input) @ 44.1 kHz                      -141.1164 dB  [-400 .. -110]
+PASS  stereo: left only in -> right channel silent @ 44.1 kHz                                                    0.0000   [0 .. 0]
+PASS  REDUCTION 0: output = input delayed by the reported latency (random blocks 1-2048) @ 48.0 kHz           -334.5994 dB  [-400 .. -120]
+PASS  silence in -> silence out (max |y|) @ 48.0 kHz                                                             0.0000   [0 .. 0]
+PASS  NaN / Inf in: non-finite output samples @ 48.0 kHz                                                         0.0000   [0 .. 0]
+PASS  LISTEN: processed + removed = the input, full band (error re the input) @ 48.0 kHz                      -154.3861 dB  [-400 .. -110]
+PASS  0.43 s of digital silence first: the take comes out identical @ 48.0 kHz                                -329.4356 dB  [-400 .. -140]
+PASS  stereo: left only in -> right channel silent @ 48.0 kHz                                                    0.0000   [0 .. 0]
+PASS  no memory allocation in process() (44.1 / 48 kHz, random blocks)                                           0.0000 allocs  [0 .. 0]
+ALL PASS: 15 of 15 checks passed (25.9 s)
+PASS  parameter count = 3
+PASS  parameter 0 is 'reduction'
+PASS  parameter 1 is 'listen'
+PASS  parameter 2 is 'output'
+PASS  defaults: REDUCTION 85 %, LISTEN off, OUTPUT 0 dB (= the Natural preset)
+PASS  the embedded network weights load and verify
+PASS  state restore: all parameters identical
+PASS  every factory preset applies (3)
+PASS  A/B: each slot keeps its own settings
+PASS  @ 44.1 kHz: latency 2468 samples (56.0 ms); REDUCTION 0 = the input delayed by it (-210.8 dB)
+PASS  @ 44.1 kHz: host bypass = exactly the input delayed by the latency (max error 0)
+PASS  @ 48.0 kHz: latency 2560 samples (53.3 ms); REDUCTION 0 = the input delayed by it (-300.0 dB)
+PASS  @ 48.0 kHz: host bypass = exactly the input delayed by the latency (max error 0)
+PASS  @ 88.2 kHz: latency 4862 samples (55.1 ms); REDUCTION 0 = the input delayed by it (-200.8 dB)
+PASS  @ 88.2 kHz: host bypass = exactly the input delayed by the latency (max error 0)
+PASS  @ 96.0 kHz: latency 5288 samples (55.1 ms); REDUCTION 0 = the input delayed by it (-201.0 dB)
+PASS  @ 96.0 kHz: host bypass = exactly the input delayed by the latency (max error 0)
+PASS  mono layout accepted
+PASS  mono: processes; then a rate change and blocks larger than announced: finite
+PASS  editor: opens/closes 5x while processing (100 % size)
+PASS  editor: resizable 75-200 %
+ALL PASS: 21 of 21 plugin checks passed
