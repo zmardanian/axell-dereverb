@@ -203,3 +203,39 @@ random order, loudness-matched, plus an X. Judged with the speech-only weights a
 - the processed take was preferred in all 4 excerpts ("without the room reverb and the artifacts of an open room");
 - X was identified in 3 of 4.
 The 1.0 weights leave 2.6 dB more room on that take at 85 % (D13).
+
+## D15 - 2.0: rap and spoken word first
+
+- **Why:** the artist raps. 1.0's speech training was mostly read sentences framed by long pauses (each VCTK
+  recording keeps its silence at both ends). A rap take is dense: the next word starts while the last one's room
+  still rings.
+- **Training:** 6,000 more steps from the 1.0 weights (peak lr 3e-4, halved every 3,000 steps). The best checkpoint
+  is step 2,000.
+  - 70 % of the speech examples are dense takes: utterances trimmed to their sound, joined with 0-120 ms gaps (15 % of
+    gaps breath-length, 150-400 ms).
+  - Home-recording rooms (booth, closet, bedrooms, bathroom) drawn 1.5x as often.
+  - Singing reduced from 40 % to 15 % of the examples.
+- **Choosing the checkpoint:** the bar was set before any results were seen. 2.0 had to match or beat 1.0 on every
+  score of the dense and the regular benchmark, remove at least as much room, and keep dry held notes within about
+  6 dB.
+  - Steps 3,000-6,000 traded a little accuracy for room removal.
+  - Step 2,000 was the only checkpoint better than 1.0 on every score of both.
+- **Results** (85 %, 1.0 -> 2.0):
+
+| | dense rap-like takes | regular benchmark |
+|---|---|---|
+| ViSQOL | | 4.11 -> 4.13 |
+| Cepstral distance | 2.92 -> 2.89 | 3.45 -> 3.43 |
+| FWSSNR | 11.56 -> 11.68 | 11.44 -> 11.56 |
+| SI-SDR (dB) | -0.78 -> -0.74 | -0.80 -> -0.72 |
+| Coloration (dB) | 2.59 -> 2.53 | 2.62 -> 2.55 |
+| Room left (dB) | -5.5 -> -5.7 | -5.4 -> -5.7 |
+
+- **The artist's take** (85 %): the room after each phrase -37.3 -> -37.8 dB, with less change to the voice
+  (60-150 Hz -4.7 -> -4.2 dB, 150-350 Hz -1.6 -> -1.2 dB).
+- **Audit:** the phrase-end room with real voices -56.0 -> -58.3 dB (RT60 0.3 s), -44.9 -> -45.0 dB (0.6 s).
+- **Singing,** which gave a little back as expected:
+  - dry held notes -3.2 -> -2.0 dB, dry ViSQOL 4.36 -> 4.38;
+  - singing in rooms: ViSQOL 4.29 -> 4.25, coloration 2.60 -> 2.73.
+- **Unchanged:** parameters, presets and saved projects (a 1.0 project opens with the new network).
+- **Not re-run:** the blind A/B (D14) was on the speech-only weights.

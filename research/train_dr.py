@@ -4,7 +4,9 @@ room from the bank (90 %) or none (10 %: the network must leave a dry take untou
 and level. Target: the voice through the room's direct sound only.
 Fine-tune with singing (1.0 final): --sing P uses VocalSet singers (minus the 4 held out by bench_sing.py) for a
 fraction P of the examples, --init <weights> starts from trained weights, --lr <peak> sets the peak learning rate.
-usage: python train_dr.py <run dir> [steps] [--resume] [--sing 0.4] [--init net.pt] [--lr 3e-4]"""
+2.0 (rap / spoken word first): --dense P builds a fraction P of the speech examples as dense takes (trimmed
+utterances, 0-120 ms gaps), and home-recording rooms are drawn 1.5x as often.
+usage: python train_dr.py <run dir> [steps] [--resume] [--sing 0.4] [--dense 0.6] [--init net.pt] [--lr 3e-4]"""
 import os, sys, glob, wave, zlib, time, numpy as np, torch
 from scipy import signal as sg
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -50,6 +52,7 @@ def read(p):
     w = wave.open(p); x = np.frombuffer(w.readframes(w.getnframes()), np.int16).astype(np.float32) / 32768.0
     return x
 
+HOME_KINDS = {"booth", "closet", "bedroom", "bedroom_furnished", "bathroom"}
 BUT_HELD_OUT = {"Hotel_SkalskyDvur_Room112", "VUT_FIT_E112"}
 
 class Rooms:
@@ -59,6 +62,9 @@ class Rooms:
         # memory-mapped .npy: every data worker shares one copy through the page cache
         ld = lambda d, k: np.load(f"{d}/{k}.npy", mmap_mode="r")
         self.h, self.off, self.peak = ld(path, "h"), ld(path, "offsets"), ld(path, "peak")
+        # 2.0: home-recording rooms (booth, closet, bedrooms, bathroom) drawn 1.5x as often as car / living / treated
+        kind = np.load(f"{path}/kind.npy", allow_pickle=True)
+        w = np.array([1.5 if k in HOME_KINDS else 1.0 for k in kind]); self.cw = np.cumsum(w / w.sum())
         self.but = None
         if os.path.exists(but):
             room = ld(but, "room")
@@ -80,11 +86,11 @@ class Rooms:
             h = r * g; p = int(peak[j]); h[p] += 1.0
             d = np.zeros_like(h); d[p] = 1.0
             return h, d
-        return self.get(rng.integers(len(self)))
+        return self.get(min(len(self) - 1, int(np.searchsorted(self.cw, rng.random()))))
 
 class Gen(torch.utils.data.IterableDataset):
-    def __init__(self, seed=0, sing=0.0):
-        self.seed, self.sing = seed, sing
+    def __init__(self, seed=0, sing=0.0, dense=0.0):
+        self.seed, self.sing, self.dense = seed, sing, dense
     def __iter__(self):
         info = torch.utils.data.get_worker_info()
         rng = np.random.default_rng(self.seed * 1000 + (info.id if info else 0) + int(time.time() * 1000) % 100000)
@@ -92,16 +98,30 @@ class Gen(torch.utils.data.IterableDataset):
         S = singers() if self.sing > 0 else {}; snames = list(S); V.update(S)
         while True:
             pick = snames if snames and rng.random() < self.sing else names
-            yield example(rng, V, pick, rooms)
+            yield example(rng, V, pick, rooms, self.dense)
 
-def example(rng, V, names, rooms):
+def trim(x, rng):
+    """the recording without its leading and trailing silence (a 20-40 ms margin)"""
+    e = np.flatnonzero(np.abs(x) > 10 ** (-40 / 20) * (np.abs(x).max() + 1e-9))
+    if len(e) == 0:
+        return x
+    m = int(rng.uniform(0.02, 0.04) * FS)
+    return x[max(0, e[0] - m):e[-1] + m]
+
+def example(rng, V, names, rooms, dense=0.0):
     spk = names[rng.integers(len(names))]
     n = int((SEG + 1.0) * FS)
     parts, tot = [], 0
+    # 2.0: rap / spoken-word delivery - utterances trimmed and joined with 0-120 ms gaps (now and then a breath-length
+    # 150-400 ms), so words follow each other while the room of the last one still rings
+    rap = (not spk.startswith("sing:")) and rng.random() < dense
     while tot < n:
         x = read_any(V[spk][rng.integers(len(V[spk]))]).astype(np.float64)
+        if rap:
+            x = trim(x, rng)
         x *= 10 ** (rng.uniform(-6, 6) / 20)
-        gap = np.zeros(int(rng.uniform(0.05, 0.6) * FS))
+        g = (rng.uniform(0.15, 0.4) if rng.random() < 0.15 else rng.uniform(0.0, 0.12)) if rap else rng.uniform(0.05, 0.6)
+        gap = np.zeros(int(g * FS))
         parts += [x, gap]; tot += len(x) + len(gap)
     dry = np.concatenate(parts)[:n]
     dry = sg.sosfilt(sg.butter(2, 40, "high", fs=FS, output="sos"), dry)
@@ -148,7 +168,7 @@ if __name__ == "__main__":
     net = DM.DRNet()
     opt = torch.optim.AdamW(net.parameters(), lr=1e-3, weight_decay=1e-5)
     arg = lambda k, d: type(d)(sys.argv[sys.argv.index(k) + 1]) if k in sys.argv else d
-    sing, peak = arg("--sing", 0.0), arg("--lr", 1e-3)
+    sing, peak, dense = arg("--sing", 0.0), arg("--lr", 1e-3), arg("--dense", 0.0)
     if "--init" in sys.argv:
         sd = torch.load(arg("--init", ""), map_location="cpu"); net.load_state_dict(sd["net"] if "net" in sd else sd)
     step = 0
@@ -156,8 +176,8 @@ if __name__ == "__main__":
     if "--resume" in sys.argv and os.path.exists(ck):
         s = torch.load(ck); net.load_state_dict(s["net"]); opt.load_state_dict(s["opt"]); step = s["step"]
     print(f"{sum(p.numel() for p in net.parameters()) / 1e6:.2f} M parameters, {len(voices())} training voices, "
-          f"{len(singers()) if sing > 0 else 0} singers ({sing:.0%} of examples)", flush=True)
-    dl = torch.utils.data.DataLoader(Gen(sing=sing), batch_size=16, num_workers=6, collate_fn=collate, prefetch_factor=4)
+          f"{len(singers()) if sing > 0 else 0} singers ({sing:.0%} of examples), dense rap-like takes {dense:.0%} of speech", flush=True)
+    dl = torch.utils.data.DataLoader(Gen(sing=sing, dense=dense), batch_size=16, num_workers=6, collate_fn=collate, prefetch_factor=4)
     sched = lambda s: peak * min(1.0, s / 1000) * (0.5 ** (s / 40000)) if "--init" not in sys.argv else \
         peak * min(1.0, s / 300) * (0.5 ** (s / 3000))
     t0 = time.time(); acc = 0.0; k = 0

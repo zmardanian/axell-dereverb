@@ -1,19 +1,19 @@
 PASS  weights: Resources/dereverb.bin loads                                                                      1.0000   [1 .. 1]
 PASS  weights: a damaged file is refused (bad magic, truncated, NaN)                                             1.0000   [1 .. 1]
-PASS  parity with the trained PyTorch model: error re the reference output                                    -135.2398 dB  [-300 .. -100]
+PASS  parity with the trained PyTorch model: error re the reference output                                    -134.0418 dB  [-300 .. -100]
 PASS  REDUCTION 0: output = input delayed by the reported latency (random blocks 1-2048) @ 44.1 kHz           -292.2508 dB  [-400 .. -120]
 PASS  silence in -> silence out (max |y|) @ 44.1 kHz                                                             0.0000   [0 .. 0]
 PASS  NaN / Inf in: non-finite output samples @ 44.1 kHz                                                         0.0000   [0 .. 0]
-PASS  LISTEN: processed + removed = the input, full band (error re the input) @ 44.1 kHz                      -141.1164 dB  [-400 .. -110]
+PASS  LISTEN: processed + removed = the input, full band (error re the input) @ 44.1 kHz                      -140.8600 dB  [-400 .. -110]
 PASS  stereo: left only in -> right channel silent @ 44.1 kHz                                                    0.0000   [0 .. 0]
 PASS  REDUCTION 0: output = input delayed by the reported latency (random blocks 1-2048) @ 48.0 kHz           -334.5994 dB  [-400 .. -120]
 PASS  silence in -> silence out (max |y|) @ 48.0 kHz                                                             0.0000   [0 .. 0]
 PASS  NaN / Inf in: non-finite output samples @ 48.0 kHz                                                         0.0000   [0 .. 0]
-PASS  LISTEN: processed + removed = the input, full band (error re the input) @ 48.0 kHz                      -154.3861 dB  [-400 .. -110]
-PASS  0.43 s of digital silence first: the take comes out identical @ 48.0 kHz                                -329.4356 dB  [-400 .. -140]
+PASS  LISTEN: processed + removed = the input, full band (error re the input) @ 48.0 kHz                      -154.0257 dB  [-400 .. -110]
+PASS  0.43 s of digital silence first: the take comes out identical @ 48.0 kHz                                -330.0751 dB  [-400 .. -140]
 PASS  stereo: left only in -> right channel silent @ 48.0 kHz                                                    0.0000   [0 .. 0]
 PASS  no memory allocation in process() (44.1 / 48 kHz, random blocks)                                           0.0000 allocs  [0 .. 0]
-ALL PASS: 15 of 15 checks passed (25.9 s)
+ALL PASS: 15 of 15 checks passed (25.1 s)
 PASS  parameter count = 3
 PASS  parameter 0 is 'reduction'
 PASS  parameter 1 is 'listen'

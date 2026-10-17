@@ -17,8 +17,10 @@ ARCTIC = ("slt", "bdl", "jmk")            # held out for evaluation
 def vctk():
     return GC.vctk_speakers()
 
-def dry_take(spk, n_utt, seed, gap=(0.08, 0.5)):
+def dry_take(spk, n_utt, seed, gap=None):
     """a dry take: utterances trimmed to their speech, joined with short (rap-like) pauses; -18 dBFS RMS on speech"""
+    # gaps between utterances: 80-500 ms; AXDR_GAP="0,0.12" for dense rap-like takes (bench_dr.py --dense)
+    gap = gap or tuple(float(v) for v in os.environ.get("AXDR_GAP", "0.08,0.5").split(","))
     rng = np.random.default_rng(zlib.crc32(f"drtake/{spk}/{seed}".encode()))
     utts = GC.utterances(spk); idx = rng.choice(len(utts), n_utt, replace=False)
     parts, labs = [], []

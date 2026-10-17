@@ -15,7 +15,7 @@
 	name = Axell De-Reverb
 	category = Audio Module Class
 	subCategories = Fx|Restoration
-	version = 1.0.0
+	version = 2.0.0
 	sdkVersion = VST 3.8.0
 	cid = ABCDEF019182FAEB4178796244727631
 
@@ -23,7 +23,7 @@
 	name = Axell De-Reverb
 	category = Component Controller Class
 	subCategories = Fx|Restoration
-	version = 1.0.0
+	version = 2.0.0
 	sdkVersion = VST 3.8.0
 	cid = ABCDEF011234ABCD4178796244727631
 

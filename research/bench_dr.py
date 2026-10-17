@@ -1,6 +1,6 @@
 """De-reverb benchmark: every method on the same examples, scored per room type.
 Voices: the 3 CMU ARCTIC voices (held out from any training). Rooms: the 8 synthetic small-room types, and measured
-everyday rooms from the MIT IR Survey (evaluation only). usage: python bench_dr.py [method ...] [--quick]"""
+everyday rooms from the MIT IR Survey (evaluation only). usage: python bench_dr.py [method ...] [--quick] [--dense]"""
 import os, sys, time, glob, numpy as np
 from concurrent.futures import ProcessPoolExecutor
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -30,6 +30,8 @@ def run(args):
 
 if __name__ == "__main__":
     quick = "--quick" in sys.argv
+    if "--dense" in sys.argv:          # rap / spoken-word delivery: 0-120 ms between utterances
+        os.environ["AXDR_GAP"] = "0.0,0.12"
     methods = [a for a in sys.argv[1:] if not a.startswith("--")] or list(B.METHODS)
     cs = cases()
     t0 = time.time()
