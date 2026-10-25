@@ -6,7 +6,11 @@ Fine-tune with singing (1.0 final): --sing P uses VocalSet singers (minus the 4 
 fraction P of the examples, --init <weights> starts from trained weights, --lr <peak> sets the peak learning rate.
 2.0 (rap / spoken word first): --dense P builds a fraction P of the speech examples as dense takes (trimmed
 utterances, 0-120 ms gaps), and home-recording rooms are drawn 1.5x as often.
-usage: python train_dr.py <run dir> [steps] [--resume] [--sing 0.4] [--dense 0.6] [--init net.pt] [--lr 3e-4]"""
+2.1 (the artist's setup: untreated room -> LCT 440 PURE -> Volt 176): --setup P builds a fraction P of the examples
+in rooms measured to read like the artist's (make_your_rooms.py), with room noise shaped like the artist's floor
+(measure_setup.py) 22-40 dB under the voice, and half of them through a 1176-style compressor (the Volt's 76) after
+the room; its gain is applied to the target too (the network removes the room and the noise, not the compression).
+usage: python train_dr.py <run dir> [steps] [--resume] [--sing 0.4] [--dense 0.6] [--setup 0.5] [--init net.pt] [--lr 3e-4]"""
 import os, sys, glob, wave, zlib, time, numpy as np, torch
 from scipy import signal as sg
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -88,15 +92,54 @@ class Rooms:
             return h, d
         return self.get(min(len(self) - 1, int(np.searchsorted(self.cw, rng.random()))))
 
+SETUP = f"{DATA}/your-setup"
+
+class YourSetup:
+    """the artist's recording setup: matched rooms, the measured noise floor's spectrum, the Volt's 76"""
+    def __init__(self, split="train"):
+        import json
+        z = np.load(f"{SETUP}/rooms_{split}.npz")
+        self.h, self.d = z["h"], z["d"]
+        nz = json.load(open(f"{SETUP}/setup.json"))["takes"][0]["noise_third_octave"]
+        self.nf = np.array([float(k) for k in nz]); self.nd = np.array(list(nz.values()))
+    def room(self, rng):
+        i = rng.integers(len(self.h))
+        return self.h[i].astype(np.float64), self.d[i].astype(np.float64)
+    def noise(self, n, rng):
+        f = np.fft.rfftfreq(n, 1 / FS)
+        mag = 10 ** (np.interp(np.log(np.maximum(f, 20.0)), np.log(self.nf), self.nd) / 20) * 10 ** (rng.normal(0, 1.5, len(self.nd)).mean() / 20)
+        w = np.fft.irfft(np.fft.rfft(rng.standard_normal(n)) * mag, n)
+        drift = 10 ** (rng.uniform(0.5, 2.0) * np.sin(2 * np.pi * np.arange(n) / FS / rng.uniform(3, 12) + rng.uniform(0, 6)) / 20)
+        return w * drift / (np.std(w) + 1e-12)
+
+def fet_gain(x, rng):
+    """a 1176-style compressor's gain on x (the Volt 176's 76): attack 0.2-0.8 ms, release 50-400 ms, ratio 4-8,
+    threshold for 2-10 dB on the peaks; run on 0.5 ms blocks (peak), interpolated to samples"""
+    B = 24; n = len(x) // B * B
+    pk = 20 * np.log10(np.abs(x[:n]).reshape(-1, B).max(1) + 1e-9)
+    thr = np.percentile(pk, 99) - rng.uniform(2, 10) * 1.3; ratio = rng.uniform(4, 8)
+    a = np.exp(-B / (rng.uniform(0.2, 0.8) * 1e-3 * FS)); r = np.exp(-B / (rng.uniform(50, 400) * 1e-3 * FS))
+    over = np.maximum(pk - thr, 0.0); env = np.empty_like(over); e = 0.0
+    for i, v in enumerate(over):
+        e = a * e + (1 - a) * v if v > e else r * e + (1 - r) * v
+        env[i] = e
+    g = 10 ** (-env * (1 - 1 / ratio) / 20)
+    gs = np.interp(np.arange(len(x)), np.arange(len(g)) * B + B / 2, g)
+    return gs
+
 class Gen(torch.utils.data.IterableDataset):
-    def __init__(self, seed=0, sing=0.0, dense=0.0):
-        self.seed, self.sing, self.dense = seed, sing, dense
+    def __init__(self, seed=0, sing=0.0, dense=0.0, setup=0.0):
+        self.seed, self.sing, self.dense, self.setup = seed, sing, dense, setup
     def __iter__(self):
         info = torch.utils.data.get_worker_info()
         rng = np.random.default_rng(self.seed * 1000 + (info.id if info else 0) + int(time.time() * 1000) % 100000)
         V = voices(); names = list(V); rooms = Rooms()
         S = singers() if self.sing > 0 else {}; snames = list(S); V.update(S)
+        ys = YourSetup() if self.setup > 0 else None
         while True:
+            if ys is not None and rng.random() < self.setup:
+                yield example(rng, V, names, rooms, 0.8, setup=ys)
+                continue
             pick = snames if snames and rng.random() < self.sing else names
             yield example(rng, V, pick, rooms, self.dense)
 
@@ -108,7 +151,7 @@ def trim(x, rng):
     m = int(rng.uniform(0.02, 0.04) * FS)
     return x[max(0, e[0] - m):e[-1] + m]
 
-def example(rng, V, names, rooms, dense=0.0):
+def example(rng, V, names, rooms, dense=0.0, setup=None):
     spk = names[rng.integers(len(names))]
     n = int((SEG + 1.0) * FS)
     parts, tot = [], 0
@@ -125,7 +168,9 @@ def example(rng, V, names, rooms, dense=0.0):
         parts += [x, gap]; tot += len(x) + len(gap)
     dry = np.concatenate(parts)[:n]
     dry = sg.sosfilt(sg.butter(2, 40, "high", fs=FS, output="sos"), dry)
-    if rng.random() < 0.9:
+    if setup is not None:
+        h, d = setup.room(rng)
+    elif rng.random() < 0.9:
         h, d = rooms.get_any(rng)
     else:
         h = np.zeros(32); h[16] = 1.0; d = h.copy()
@@ -140,9 +185,14 @@ def example(rng, V, names, rooms, dense=0.0):
         x = lfilter(b, a, x); t = lfilter(b, a, t)
     # room tone
     rms = np.sqrt(np.mean(t ** 2) + 1e-12)
-    tone = sg.lfilter([1], [1, -rng.uniform(0.0, 0.98)], rng.standard_normal(n))
-    tone *= rms * 10 ** (rng.uniform(-85, -50) / 20) / (np.std(tone) + 1e-12)
-    x = x + tone
+    if setup is not None:                       # the artist's floor: 22-40 dB under the voice, then maybe the 76
+        x = x + setup.noise(n, rng) * rms * 10 ** (-rng.uniform(22, 40) / 20)
+        if rng.random() < 0.5:
+            gc = fet_gain(x, rng); x, t = x * gc, t * gc
+    else:
+        tone = sg.lfilter([1], [1, -rng.uniform(0.0, 0.98)], rng.standard_normal(n))
+        tone *= rms * 10 ** (rng.uniform(-85, -50) / 20) / (np.std(tone) + 1e-12)
+        x = x + tone
     g = 10 ** (rng.uniform(-35, -12) / 20) / (np.sqrt(np.mean(x ** 2)) + 1e-12)
     x, t = x * g, t * g
     s0 = n - int(SEG * FS)
@@ -168,7 +218,7 @@ if __name__ == "__main__":
     net = DM.DRNet()
     opt = torch.optim.AdamW(net.parameters(), lr=1e-3, weight_decay=1e-5)
     arg = lambda k, d: type(d)(sys.argv[sys.argv.index(k) + 1]) if k in sys.argv else d
-    sing, peak, dense = arg("--sing", 0.0), arg("--lr", 1e-3), arg("--dense", 0.0)
+    sing, peak, dense, setup = arg("--sing", 0.0), arg("--lr", 1e-3), arg("--dense", 0.0), arg("--setup", 0.0)
     if "--init" in sys.argv:
         sd = torch.load(arg("--init", ""), map_location="cpu"); net.load_state_dict(sd["net"] if "net" in sd else sd)
     step = 0
@@ -176,8 +226,9 @@ if __name__ == "__main__":
     if "--resume" in sys.argv and os.path.exists(ck):
         s = torch.load(ck); net.load_state_dict(s["net"]); opt.load_state_dict(s["opt"]); step = s["step"]
     print(f"{sum(p.numel() for p in net.parameters()) / 1e6:.2f} M parameters, {len(voices())} training voices, "
-          f"{len(singers()) if sing > 0 else 0} singers ({sing:.0%} of examples), dense rap-like takes {dense:.0%} of speech", flush=True)
-    dl = torch.utils.data.DataLoader(Gen(sing=sing, dense=dense), batch_size=16, num_workers=6, collate_fn=collate, prefetch_factor=4)
+          f"{len(singers()) if sing > 0 else 0} singers ({sing:.0%} of examples), dense rap-like takes {dense:.0%} of speech, "
+          f"the artist's setup {setup:.0%} of examples", flush=True)
+    dl = torch.utils.data.DataLoader(Gen(sing=sing, dense=dense, setup=setup), batch_size=16, num_workers=6, collate_fn=collate, prefetch_factor=4)
     sched = lambda s: peak * min(1.0, s / 1000) * (0.5 ** (s / 40000)) if "--init" not in sys.argv else \
         peak * min(1.0, s / 300) * (0.5 ** (s / 3000))
     t0 = time.time(); acc = 0.0; k = 0

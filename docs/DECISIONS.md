@@ -239,3 +239,29 @@ The 1.0 weights leave 2.6 dB more room on that take at 85 % (D13).
   - singing in rooms: ViSQOL 4.29 -> 4.25, coloration 2.60 -> 2.73.
 - **Unchanged:** parameters, presets and saved projects (a 1.0 project opens with the new network).
 - **Not re-run:** the blind A/B (D14) was on the speech-only weights.
+
+## D16 - The artist's setup (untreated room -> LCT 440 PURE -> Volt 176): studied, 2.0 kept
+
+- **Measured from 10 of the artist's dry takes** (`research/measure_setup.py`, the decay after word endings per octave
+  band; no labels): mids and highs 0.13-0.21 s, the bass 0.26-0.73 s (it varies by session), the floor 21-40 dB
+  under the voice and falling ~4.6 dB per octave.
+- **Matched rooms** (`research/make_your_rooms.py`): the room simulator's untreated rooms whose band RT60s fall in the
+  measured range (x1.4). Furnished bedrooms match; bare bedrooms ring far too long above 500 Hz. 240 training rooms, 24
+  test rooms. Matching through the measurement itself was tried first and dropped (the detector found too few word
+  endings in rooms that did match).
+- **Fine-tune** (`train_dr.py --setup 0.5`: half the examples in those rooms, the measured floor 22-40 dB under the
+  voice, a 1176-style compressor after the room on half of them; 6,000 steps from 2.0). On held-out voices in held-out
+  matched rooms the best checkpoint (2,000) left 0.6 dB less room (-11.3 -> -11.9 dB) and a lower cepstral distance
+  (2.51 -> 2.30), but a lower FWSSNR (17.3 -> 16.8) and more colour (box 0.41 -> 0.65). On the 10 real takes it did
+  exactly what 2.0 does (decay after word endings and floor identical). **Not shipped: 2.0 already handles this room.**
+- **What does matter there: REDUCTION** (`research/eval_setup.py`, held-out matched rooms):
+
+  | REDUCTION | room + noise left | damage | cepstral distance |
+  |---|---|---|---|
+  | 85 % | -9.0 dB | -13.1 dB | 2.53 |
+  | 95 % | -10.6 dB | -12.5 dB | 2.49 |
+  | 100 % | -11.3 dB | -12.2 dB | 2.51 |
+
+  On the 10 real takes, 85 -> 100 % halves what is left of the bass decay (0.15 -> 0.13 s, from 0.29 recorded) and
+  lowers the floor 6 dB more. The Dojo's Voice Profile now picks 95 % for a small room with a background less than
+  35 dB under the voice.
