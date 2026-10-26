@@ -1,5 +1,7 @@
 # Axell De-Reverb (VST3, Linux)
 
+[![CI](https://github.com/zmardanian/axell-dereverb/actions/workflows/ci.yml/badge.svg)](https://github.com/zmardanian/axell-dereverb/actions/workflows/ci.yml)
+
 The de-reverb of the Axell suite. It removes the room from a close vocal:
 - **the tail** of a bare bedroom or a bathroom;
 - **the early reflections and the 350-600 Hz box** of a wardrobe booth, a closet or a car, which most de-reverbs
