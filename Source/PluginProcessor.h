@@ -2,17 +2,20 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "DeReverb.h"
 
+#include <axell/dsp/LatencyHandshake.h>
+
 // Thin JUCE wrapper around axdr::DeReverb (all DSP lives in JUCE-free headers). The network's weights are embedded
 // (BinaryData) and verified on load.
-class DeReverbProcessor : public juce::AudioProcessor
+class DeReverbProcessor : public juce::AudioProcessor, private juce::Timer
 {
 public:
     DeReverbProcessor();
-    ~DeReverbProcessor() override = default;
+    ~DeReverbProcessor() override { stopTimer(); }
 
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
     void releaseResources() override {}
     void reset() override;
+    void setNonRealtime (bool isNonRealtime) noexcept override;
     bool isBusesLayoutSupported (const BusesLayout& layouts) const override;
     void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
     void processBlockBypassed (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
@@ -44,15 +47,22 @@ public:
     int getActiveSlot() const { return activeSlot; }
     void selectSlot (int slot);
     void copyActiveToOther();
-    bool weightsOk() const { return weights.ok; }
-    const axdr::DeReverb& dsp() const { return dr; }
+    bool weightsOk() const { return weights.ok && weightsLive.ok; }
+    const axdr::DeReverb& dsp() const { return activeMode == 1 ? drLive : dr; }
+    bool liveActive() const { return activeMode == 1; }
 
 private:
     void run (juce::AudioBuffer<float>& buffer, bool bypass);
     void restoreTree (const juce::ValueTree& tree);
+    void timerCallback() override;
+    int latencyOf (int mode) const { return mode == 1 ? drLive.latencySamples() : dr.latencySamples(); }
 
-    axdr::Weights weights;
-    axdr::DeReverb dr;
+    axdr::Weights weights, weightsLive;
+    axdr::DeReverb dr, drLive;                  // STUDIO (2.0's network, look-ahead) and LIVE (3.0, causal, no latency)
+    axell::LatencyHandshake hs;
+    std::atomic<int> activeMode { 0 };
+    float fade = 1.0f, fadeStep = 0.001f;
+    int warm = 0;
     int preparedChannels = 0, latency = 0;
     // host bypass: the input delayed by the latency, crossfaded in over 10 ms
     std::array<std::vector<float>, 2> dryLine, inCopy;
@@ -64,6 +74,7 @@ private:
     std::atomic<float>* pReduction = nullptr;
     std::atomic<float>* pListen = nullptr;
     std::atomic<float>* pOutput = nullptr;
+    std::atomic<float>* pMode = nullptr;
     float outGain = 1.0f;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DeReverbProcessor)

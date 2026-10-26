@@ -71,3 +71,22 @@ def _mix(a):
     return f
 METHODS["axell85"] = _mix(0.85)
 METHODS["axell70"] = _mix(0.70)
+
+# ---------------------------------------------------------------------------------------------- 3.0 LIVE (the C++ engine)
+def axell_live(x, room=None):
+    """the shipping C++ engine with LIVE weights (causal network, minimum-phase filter, no latency): tools/DRRender with
+    AXDR_LIVE_BIN (a weights file with LA = 0) and AXDR_RENDER (the DRRender binary)"""
+    import os, subprocess, tempfile
+    with tempfile.TemporaryDirectory(dir=os.environ.get("AXDR_TMP")) as td:
+        np.asarray(x, np.float32).tofile(f"{td}/in.f32")
+        subprocess.run([os.environ["AXDR_RENDER"], os.environ["AXDR_LIVE_BIN"], f"{td}/in.f32", f"{td}/out.f32", "--raw"],
+                       check=True, capture_output=True)
+        y = np.fromfile(f"{td}/out.f32", np.float32).astype(np.float64)
+    out = np.zeros(len(x)); out[:min(len(x), len(y))] = y[:len(x)]
+    return out
+METHODS["axell_live"] = axell_live
+def _mix_live(a):
+    def f(x, room=None):
+        return (1 - a) * x + a * axell_live(x, room)
+    return f
+METHODS["axell_live85"] = _mix_live(0.85)

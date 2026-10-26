@@ -208,6 +208,8 @@ def collate(b):
 def aligned_loss(net, F, X, T):
     Y, _ = net(F, X)
     LA = DM.LA
+    if LA == 0:                                   # causal (3.0 LIVE): output frame t is input frame t
+        return DM.loss_fn(Y, T)
     Ta = torch.cat([torch.zeros_like(T[:, :LA]), T[:, :-LA]], 1)
     return DM.loss_fn(Y[:, LA:], Ta[:, LA:])
 

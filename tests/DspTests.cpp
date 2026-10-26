@@ -233,6 +233,77 @@ int main (int argc, char** argv)
         render (W, 48000, { x, x }, 0.7f, true, &rng, 2048, true);
         check ("no memory allocation in process() (44.1 / 48 kHz, random blocks)", (double) allocCount, 0, 0, "allocs");
     }
+    // 8. 3.0 LIVE: the causal network as a zero-latency minimum-phase filter
+    {
+        auto lb = readFile ("Resources/dereverb_live.bin");
+        Weights WL;
+        check ("LIVE weights: Resources/dereverb_live.bin loads, a causal network (no look-ahead)",
+               (WL.load (lb.data(), lb.size()) && WL.la == 0 && W.la == kLa) ? 1 : 0, 1, 1, "");
+        if (WL.ok)
+        {
+            for (int fs : { 44100, 48000, 96000 })
+            {
+                char R[32];
+                std::snprintf (R, sizeof R, " @ %.1f kHz", fs / 1000.0);
+                DeReverb d;
+                d.prepare (WL, fs, 2, 2048);
+                check (std::string ("LIVE: latency (ms; 0 at 48 kHz, the resamplers' elsewhere)") + R, 1000.0 * d.latencySamples() / fs,
+                       0.0, fs == 48000 ? 0.0 : 4.0, "ms");
+                const size_t n = (size_t) fs * 3;
+                std::vector<float> tone (n);
+                for (size_t i = 0; i < n; ++i)
+                    tone[i] = (float) (0.2 * std::sin (2 * M_PI * 440.0 * i / fs) + 0.05 * std::sin (2 * M_PI * 9000.0 * i / fs));
+                auto out = render (WL, fs, { tone, tone }, 0.0f, false, &rng);
+                double e = 0, r = 0;
+                for (size_t i = (size_t) fs / 2; i < n - (size_t) fs / 4; ++i)
+                {
+                    e += (double) (out[0][i] - tone[i]) * (out[0][i] - tone[i]);
+                    r += (double) tone[i] * tone[i];
+                }
+                check (std::string ("LIVE, REDUCTION 0: output = input (random blocks)") + R, db (e, r), -400, -120, "dB");
+                std::vector<float> noisy (n);
+                for (size_t i = 0; i < n; ++i)
+                    noisy[i] = tone[i] + 0.05f * nd (rng);
+                auto pr = render (WL, fs, { noisy, noisy }, 1.0f, false, &rng);
+                auto rm = render (WL, fs, { noisy, noisy }, 1.0f, true, &rng);
+                double e2 = 0, r2 = 0, mx = 0;
+                bool finite = true;
+                for (size_t i = (size_t) fs / 2; i < n - (size_t) fs / 4; ++i)
+                {
+                    const double d2 = (double) pr[0][i] + rm[0][i] - noisy[i];
+                    e2 += d2 * d2;
+                    r2 += (double) noisy[i] * noisy[i];
+                    mx = std::max (mx, (double) std::abs (pr[0][i]));
+                    finite = finite && std::isfinite (pr[0][i]) && std::isfinite (rm[0][i]);
+                }
+                check (std::string ("LIVE: processed + removed (LISTEN) = the input (error re the input)") + R, db (e2, r2), -400, -100, "dB");
+                check (std::string ("LIVE: output finite and bounded (max |y|)") + R, finite ? mx : 1e9, 0.0, 1.0, "");
+                std::vector<float> z (n, 0.0f);
+                auto zo = render (WL, fs, { z, z }, 1.0f, false, &rng);
+                double zm = 0;
+                for (float v : zo[0])
+                    zm = std::max (zm, (double) std::abs (v));
+                check (std::string ("LIVE: silence in -> silence out (max |y|)") + R, zm, 0, 0, "");
+            }
+            std::vector<float> x ((size_t) 48000 * 2);
+            for (auto& v : x)
+                v = 0.1f * nd (rng);
+            allocCount = 0;
+            render (WL, 48000, { x, x }, 0.7f, false, &rng, 2048, true);
+            render (WL, 44100, { x, x }, 0.7f, true, &rng, 2048, true);
+            check ("LIVE: no memory allocation in process() (44.1 / 48 kHz, random blocks)", (double) allocCount, 0, 0, "allocs");
+            if (! quick)
+            {
+                const auto a = std::chrono::steady_clock::now();
+                std::vector<float> y ((size_t) 48000 * 10);
+                for (auto& v : y)
+                    v = 0.1f * nd (rng);
+                render (WL, 48000, { y, y }, 1.0f, false);
+                const double sec = std::chrono::duration<double> (std::chrono::steady_clock::now() - a).count();
+                check ("LIVE: CPU, stereo @ 48000 Hz (% of one core)", 100.0 * sec / 10.0, 0, 30, "%");
+            }
+        }
+    }
     // 7. CPU: 48 kHz stereo and 44.1 kHz stereo, % of one core
     if (! quick)
         for (int fs : { 48000, 44100 })

@@ -58,6 +58,7 @@ private:
     juce::TextButton slotA { "A" }, slotB { "B" }, slotCopy { "COPY" };
     ui::Knob reduction { "REDUCTION", ui::col::teal, 150 }, output { "OUTPUT", ui::col::global, 72 };
     ui::Toggle listen { "LISTEN: REMOVED", ui::col::warn, "pill" };
+    ui::Segmented mode { { "STUDIO", "LIVE" }, ui::col::teal };
     ui::LevelMeter inMeter { "IN" }, outMeter { "OUT" };
     RoomHistory history;
     TipArea removedTip;

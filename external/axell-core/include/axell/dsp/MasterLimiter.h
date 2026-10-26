@@ -15,6 +15,7 @@
 //   memory times.
 // Latency: 64 + L samples. prepare() allocates; everything else is real-time safe.
 #include "Math.h"
+#include <cstdint>
 #include "SlidingMax.h"
 #include "TruePeak.h"
 
@@ -43,6 +44,8 @@ public:
                 r.assign ((size_t) cap, 1.0);
         }
         attMax.prepare (maxLook);
+        voiceAvgK = 1.0f - onePole (0.25f, fs);     // VOICE HOLD (process' pause flags): the voice's recent gain, 0.25 s
+        pauseGlideK = 1.0f - onePole (0.0125f, fs);  // a pause glides to it in 12.5 ms
         maxHold = (int) std::ceil (kMaxHoldMs * 0.001 * fs);
         holdMax.prepare (maxLook + maxHold);
         setLookahead (std::min (maxLook, (int) std::lround (0.002 * fs)));
@@ -103,14 +106,18 @@ public:
             ch.env = 1.0f;
             ch.mem = 0.0f;
             ch.gain = 1.0f;
+            ch.voiceAvg = 1.0f;
         }
         attMax.resetState();
         holdMax.resetState();
         histPos = pos = 0;
     }
 
-    // in place; returns the deepest gain reduction (dB) of this call
-    float process (float* const* io, int numChannels, int n) noexcept
+    // in place; returns the deepest gain reduction (dB) of this call. pause (optional, n flags): 1 = the voice pauses
+    // (axell-core VoicePresence): VOICE HOLD - the release stops and the gain glides to the voice's recent average, so
+    // a pause is not lifted by the release (Axell Duo Compressor 3.0's method). The attack is untouched: the ceiling
+    // guarantee holds. Without flags: bit-identical to before.
+    float process (float* const* io, int numChannels, int n, const uint8_t* pause = nullptr) noexcept
     {
         const int nc = std::clamp (numChannels, 1, kMaxCh);
         constexpr int centre = kTaps / 2 - 1;
@@ -165,7 +172,19 @@ public:
                 const float need = 1.0f / (aNow + (aHeld - aNow) * ch.mem);
                 // program-dependent release
                 const float tau = invTauFast + (invTauSlow - invTauFast) * ch.mem; // per-sample rate (1 / (tau fs))
-                ch.env = need < ch.env ? need : std::min (need, ch.env + (need - ch.env) * oneMinusExpSmall (std::min (tau, 0.5f)));
+                if (pause == nullptr)
+                    ch.env = need < ch.env ? need : std::min (need, ch.env + (need - ch.env) * oneMinusExpSmall (std::min (tau, 0.5f)));
+                else if (pause[i] == 0)
+                {
+                    ch.env = need < ch.env ? need : std::min (need, ch.env + (need - ch.env) * oneMinusExpSmall (std::min (tau, 0.5f)));
+                    ch.voiceAvg += (ch.env - ch.voiceAvg) * voiceAvgK;
+                }
+                else
+                {
+                    if (ch.voiceAvg < ch.env)                       // hold: no release; glide down to the voice's gain
+                        ch.env += (ch.voiceAvg - ch.env) * pauseGlideK;
+                    ch.env = std::min (need, ch.env);               // the attack as always (the ceiling holds)
+                }
                 const float w = ch.env < 0.891f ? 1.0f : 0.0f; // sustained limiting above 1 dB charges the memory
                 ch.mem += (w - ch.mem) * (w > ch.mem ? memRiseK : memFallK);
                 double g = ch.env;
@@ -199,7 +218,7 @@ private:
         std::vector<float> delay;
         std::array<std::vector<double>, kSmooth> avgRing;
         std::array<double, kSmooth> avgSum {};
-        float prevU = 0, prevPrevU = 0, openPeak = 0, completedPrev = 0, env = 1, mem = 0, gain = 1;
+        float prevU = 0, prevPrevU = 0, openPeak = 0, completedPrev = 0, env = 1, mem = 0, gain = 1, voiceAvg = 1;
     };
     double fs = 48000.0;
     int maxLook = 96, look = 96, mask = 0, pos = 0, histPos = 0;
@@ -210,5 +229,6 @@ private:
     static constexpr float kMaxHoldMs = 25.0f;
     int maxHold = 1200, hold = 720;
     float ceiling = 0.891f, invTauFast = 0.0f, invTauSlow = 0.0f, memRiseK = 0.0f, memFallK = 0.0f, link = 1.0f;
+    float voiceAvgK = 0.0f, pauseGlideK = 0.0f;
 };
 } // namespace axell

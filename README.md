@@ -24,8 +24,11 @@ More screens: [LISTEN: REMOVED](docs/screenshots/dereverb-listen.png), [REDUCTIO
 - **LISTEN: REMOVED** plays only what is taken away (processed + removed = the input).
 - **OUTPUT** -24 to +24 dB. In/out meters, a REMOVED meter and a room history.
 - **Presets:** Natural (85 %), Clean (100 %), Gentle (60 %). User presets and A/B.
-- **Latency:** 2560 samples at 48 kHz (53 ms), reported to the host and compensated. The plugin is for mixing; there
-  is no low-latency mode for monitoring while recording.
+- **STUDIO / LIVE** (3.0): STUDIO looks 32 ms ahead (latency 2560 samples at 48 kHz, 53 ms, reported and
+  compensated) - for mixing. LIVE has no latency at all (48 kHz; the resamplers' 2-3 ms at other rates): a causal
+  network applied as a minimum-phase filter, for hearing yourself without the room while you record. LIVE removes
+  about two thirds of what STUDIO removes (3.7 vs 5.7 dB of room on 48 held-out examples, ViSQOL 4.00 vs 4.13) and
+  harms the voice no more.
 - **Any sample rate:** 44.1 to 96 kHz. The network runs at 48 kHz, with exact-latency resampling, and the band above
   it passes untouched.
 

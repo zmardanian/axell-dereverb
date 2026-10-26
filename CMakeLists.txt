@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(AxellDeReverb VERSION 2.0.0)
+project(AxellDeReverb VERSION 3.0.0)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -22,7 +22,7 @@ endif()
 add_subdirectory(${AXELL_CORE_DIR} axell-core)
 
 # the network's weights (research/export_dr.py), embedded
-juce_add_binary_data(AxDRWeights SOURCES Resources/dereverb.bin)
+juce_add_binary_data(AxDRWeights SOURCES Resources/dereverb.bin Resources/dereverb_live.bin)
 set_target_properties(AxDRWeights PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 juce_add_plugin(AxellDeReverb
@@ -42,7 +42,7 @@ juce_add_plugin(AxellDeReverb
   VST3_CATEGORIES           Fx Restoration)
 
 set(DR_SOURCES Source/PluginProcessor.cpp Source/PluginEditor.cpp)
-set(DR_DEFS JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0 JUCE_DISPLAY_SPLASH_SCREEN=0)
+set(DR_DEFS JUCE_WEB_BROWSER=0 AXELL_THEME_HUE=210 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0 JUCE_DISPLAY_SPLASH_SCREEN=0)
 target_sources(AxellDeReverb PRIVATE ${DR_SOURCES})
 target_compile_definitions(AxellDeReverb PUBLIC ${DR_DEFS})
 axell_core_add_gui(AxellDeReverb)

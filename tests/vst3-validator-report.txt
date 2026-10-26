@@ -15,7 +15,7 @@
 	name = Axell De-Reverb
 	category = Audio Module Class
 	subCategories = Fx|Restoration
-	version = 2.0.0
+	version = 3.0.0
 	sdkVersion = VST 3.8.0
 	cid = ABCDEF019182FAEB4178796244727631
 
@@ -23,7 +23,7 @@
 	name = Axell De-Reverb
 	category = Component Controller Class
 	subCategories = Fx|Restoration
-	version = 2.0.0
+	version = 3.0.0
 	sdkVersion = VST 3.8.0
 	cid = ABCDEF011234ABCD4178796244727631
 
@@ -59,13 +59,14 @@ Info:  => Event Buses: [0 In(s) => 0 Out(s)]
 
 [Scan Parameters]
 Info:  ===Scan Parameters ====================================
-Info:  This component exports 5 parameter(s)
+Info:  This component exports 6 parameter(s)
 Info:     Parameter 000 (id=2039460467): [title="Reduction"] [unit=""] [type = Float, default = 0.850000, unit = 0]
 Info:     Parameter 001 (id=1044975047): [title="Listen: Removed"] [unit=""] [type = Toggle, default = 0.000000, unit = 0]
 Info:     Parameter 002 (id=1141971201): [title="Output"] [unit=""] [type = Float, default = 0.500000, unit = 0]
-Info:     Parameter 003 (id=1652125811): [title="Bypass"] [unit=""] [type = Toggle, default = 0.000000, unit = 0]
-Info:     Parameter 004 (id=1886548852): [title="Program"] [unit=""] [type = Discrete, default = 0.000000, unit = 0]
-Info:  =>Parameter 004 (id=1886548852) is kIsProgramChange, but not a kIsList!
+Info:     Parameter 003 (id=3357091): [title="Mode"] [unit=""] [type = Toggle, default = 0.000000, unit = 0]
+Info:     Parameter 004 (id=1652125811): [title="Bypass"] [unit=""] [type = Toggle, default = 0.000000, unit = 0]
+Info:     Parameter 005 (id=1886548852): [title="Program"] [unit=""] [type = Discrete, default = 0.000000, unit = 0]
+Info:  =>Parameter 005 (id=1886548852) is kIsProgramChange, but not a kIsList!
 [Succeeded]
 
 [MIDI Mapping]

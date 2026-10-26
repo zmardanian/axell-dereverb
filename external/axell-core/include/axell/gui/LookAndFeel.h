@@ -10,6 +10,18 @@ juce::Font caps (float height, int weight = 1);  // tracked caps
 
 namespace col
 {
+#ifdef AXELL_THEME_HUE
+// each plugin's own ground: the surfaces take the plugin's hue (AXELL_THEME_HUE, degrees, set by its CMake target);
+// text, meters and accents stay the family's
+inline juce::Colour themed (float sat, float val) { return juce::Colour::fromHSV ((float) (AXELL_THEME_HUE) / 360.0f, sat, val, 1.0f); }
+const juce::Colour bg       = themed (0.62f, 0.115f);
+const juce::Colour header   = themed (0.58f, 0.135f);
+const juce::Colour panel    = themed (0.46f, 0.165f);
+const juce::Colour panelTop = themed (0.42f, 0.195f);
+const juce::Colour well     = themed (0.66f, 0.072f);
+const juce::Colour track    = themed (0.30f, 0.255f);
+const juce::Colour grid     = themed (0.38f, 0.215f);
+#else
 const juce::Colour bg       (0xff121418);
 const juce::Colour header   (0xff171a1f);
 const juce::Colour panel    (0xff1c1f25);
@@ -17,6 +29,7 @@ const juce::Colour panelTop (0xff21252c);
 const juce::Colour well     (0xff0d0f12);
 const juce::Colour track    (0xff2b2f37);
 const juce::Colour grid     (0xff23272e);
+#endif
 const juce::Colour text     (0xffe7e9ee);
 const juce::Colour dim      (0xff8d939e);
 const juce::Colour faint    (0xff5b616c);

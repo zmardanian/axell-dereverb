@@ -7,6 +7,7 @@
 //   input = features of frames t-LA-CTX .. t (newest last) -> Linear+ReLU -> GRU -> GRU (+ residual) ->
 //   32 ERB gains (sigmoid), deep-filter coefficients for bins 0..95 (tanh, order 5 over frames t-LA-4 .. t-LA) and a
 //   per-bin mix (sigmoid). Output frame = input frame t - LA (LA frames of look-ahead).
+// LA comes with the weights: 3 (STUDIO, 2.0's network) or 0 (3.0 LIVE: a causal network, fine-tuned from 2.0's).
 // Weights: a flat float32 file written by research/export_dr.py (layout below). Real-time safe after load().
 #include <algorithm>
 #include <array>
@@ -20,9 +21,9 @@
 namespace axdr
 {
 constexpr int kFs = 48000, kNfft = 1024, kHop = 512, kNb = kNfft / 2 + 1;
-constexpr int kNerb = 32, kNdf = 96, kDfOrder = 5, kLa = 3, kCtx = 2, kH = 256;
+constexpr int kNerb = 32, kNdf = 96, kDfOrder = 5, kLa = 3, kCtx = 2, kH = 256;   // kLa: the largest look-ahead
 constexpr int kFeat = kNerb + 2 * kNdf;
-constexpr int kIn = (kCtx + 1 + kLa) * kFeat;
+constexpr int kIn = (kCtx + 1 + kLa) * kFeat;                                      // the largest input
 
 using cf = std::complex<float>;
 
@@ -83,6 +84,7 @@ struct Weights
 {
     DenseLayer inp, outG, outDf, outA;
     GruLayer gru1, gru2;
+    int la = kLa;            // look-ahead frames of this network (from the input layer's width)
     bool ok = false;
 
     // layout (float32, little endian): magic 'AXDR', version 1, then each tensor as [rows, cols] (int32) + data:
@@ -111,10 +113,22 @@ struct Weights
         int32_t magic = 0, ver = 0;
         if (! rdI (magic) || magic != 0x52445841 || ! rdI (ver) || ver != 1)
             return false;
-        inp.in = kIn; inp.out = kH;
+        // the input layer's width tells the look-ahead: (CTX + 1 + LA) frames of features
+        {
+            int32_t r = 0, c = 0;
+            if (pos + 8 > bytes)
+                return false;
+            std::memcpy (&r, p + pos, 4);
+            std::memcpy (&c, p + pos + 4, 4);
+            if (r != kH || c % kFeat != 0 || c / kFeat - kCtx - 1 < 0 || c / kFeat - kCtx - 1 > kLa)
+                return false;
+            la = c / kFeat - kCtx - 1;
+        }
+        const int nIn = (kCtx + 1 + la) * kFeat;
+        inp.in = nIn; inp.out = kH;
         gru1.in = kH; gru1.hid = kH; gru2.in = kH; gru2.hid = kH;
         outG.in = kH; outG.out = kNerb; outDf.in = kH; outDf.out = kNdf * kDfOrder * 2; outA.in = kH; outA.out = kNdf;
-        ok = rdT (inp.w, kH, kIn) && rdT (inp.b, 1, kH)
+        ok = rdT (inp.w, kH, nIn) && rdT (inp.b, 1, kH)
              && rdT (gru1.wih, 3 * kH, kH) && rdT (gru1.whh, 3 * kH, kH) && rdT (gru1.bih, 1, 3 * kH) && rdT (gru1.bhh, 1, 3 * kH)
              && rdT (gru2.wih, 3 * kH, kH) && rdT (gru2.whh, 3 * kH, kH) && rdT (gru2.bih, 1, 3 * kH) && rdT (gru2.bhh, 1, 3 * kH)
              && rdT (outG.w, kNerb, kH) && rdT (outG.b, 1, kNerb)
@@ -167,16 +181,17 @@ public:
     void prepare (const Weights& w)
     {
         W = &w;
+        la = w.la;
         band = erbBands();
         bandCount.fill (0);
         for (int k = 0; k < kNb; ++k)
             ++bandCount[(size_t) band[(size_t) k]];
-        ctx.assign ((size_t) (kCtx + 1 + kLa) * kFeat, 0.0f);
+        ctx.assign ((size_t) (kCtx + 1 + la) * kFeat, 0.0f);
         xin.assign ((size_t) kIn, 0.0f);
         z0.assign (kH, 0.0f); z1.assign (kH, 0.0f); h1.assign (kH, 0.0f); h2.assign (kH, 0.0f); h2out.assign (kH, 0.0f);
         tmp.assign (6 * kH, 0.0f);
         g.assign (kNerb, 0.0f); df.assign ((size_t) kNdf * kDfOrder * 2, 0.0f); amix.assign (kNdf, 0.0f);
-        specHist.assign ((size_t) (kLa + kDfOrder) * kNb, cf {});
+        specHist.assign ((size_t) (la + kDfOrder) * kNb, cf {});
         reset();
     }
 
@@ -208,7 +223,7 @@ public:
         }
         const bool track = first || ! silent;
         // keep the spectrum history (input frames t .. t - LA - DF_ORDER + 1)
-        const int HN = kLa + kDfOrder;
+        const int HN = la + kDfOrder;
         std::copy (X, X + kNb, specHist.begin() + (size_t) histPos * kNb);
         auto hist = [&] (int back) { return specHist.data() + (size_t) ((histPos - back + HN) % HN) * kNb; };
         // features of frame t
@@ -234,8 +249,8 @@ public:
         }
         first = false;
         // context window: shift left, newest last
-        std::memmove (ctx.data(), ctx.data() + kFeat, (size_t) (kCtx + kLa) * kFeat * sizeof (float));
-        std::copy (feat, feat + kFeat, ctx.data() + (size_t) (kCtx + kLa) * kFeat);
+        std::memmove (ctx.data(), ctx.data() + kFeat, (size_t) (kCtx + la) * kFeat * sizeof (float));
+        std::copy (feat, feat + kFeat, ctx.data() + (size_t) (kCtx + la) * kFeat);
         // network
         W->inp.apply (ctx.data(), z0.data());
         for (auto& v : z0)
@@ -256,7 +271,7 @@ public:
         }
 #endif
         // the frame being produced: input frame t - LA
-        const cf* Xd = hist (kLa);
+        const cf* Xd = hist (la);
         for (int k = 0; k < kNb; ++k)
         {
             const float gk = 1.0f / (1.0f + std::exp (-g[(size_t) band[(size_t) k]]));
@@ -268,7 +283,7 @@ public:
             for (int i = 0; i < kDfOrder; ++i)
             {
                 // coefficient i multiplies frame (t - LA) - (ORDER - 1) + i  (oldest first)
-                const cf* Xi = hist (kLa + kDfOrder - 1 - i);
+                const cf* Xi = hist (la + kDfOrder - 1 - i);
                 const float re = std::tanh (df[(size_t) ((k * kDfOrder + i) * 2)]);
                 const float im = std::tanh (df[(size_t) ((k * kDfOrder + i) * 2 + 1)]);
                 s += Xi[k] * cf (re, im);
@@ -286,6 +301,7 @@ private:
     static constexpr double kAlpha = 0.99;
     static constexpr double kSilentPower = 512.0 * 1.0e-13; // mean bin power of white noise at -130 dBFS (sqrt-Hann, 1024)
     const Weights* W = nullptr;
+    int la = kLa;
     std::array<int, kNb> band {};
     std::array<int, kNerb> bandCount {};
     std::array<double, kNerb> m {};

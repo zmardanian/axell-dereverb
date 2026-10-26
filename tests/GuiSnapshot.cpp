@@ -46,7 +46,7 @@ int main (int argc, char** argv)
             voice.setSample (1, i, v);
         }
     }
-    auto shoot = [&] (const juce::String& name, float scale, std::function<void (DeReverbProcessor&)> setup) {
+    auto shoot = [&] (const juce::String& name, float scale, std::function<void (DeReverbProcessor&)> setup, float pixels = 1.0f) {
         DeReverbProcessor proc;
         proc.setPlayConfigDetails (2, 2, 48000.0, 512);
         proc.prepareToPlay (48000.0, 512);
@@ -63,7 +63,7 @@ int main (int argc, char** argv)
             juce::MessageManager::getInstance()->runDispatchLoopUntil (1);
         }
         juce::MessageManager::getInstance()->runDispatchLoopUntil (100);
-        const auto img = ed->createComponentSnapshot (ed->getLocalBounds(), true, 1.0f);
+        const auto img = ed->createComponentSnapshot (ed->getLocalBounds(), true, pixels);
         auto f = dir.getChildFile (name + ".png");
         f.deleteFile();
         juce::FileOutputStream os (f);
@@ -74,5 +74,6 @@ int main (int argc, char** argv)
     shoot ("dereverb", 1.0f, [] (DeReverbProcessor&) {});
     shoot ("dereverb-listen", 1.0f, [] (DeReverbProcessor& p) { p.apvts.getParameter ("listen")->setValueNotifyingHost (1.0f); });
     shoot ("dereverb-75pct", 0.75f, [] (DeReverbProcessor& p) { p.setCurrentProgram (1); });
+    shoot ("dereverb-hidpi2x", 1.0f, [] (DeReverbProcessor&) {}, 2.0f);   // HiDPI: twice the pixels
     return 0;
 }

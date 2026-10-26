@@ -15,7 +15,7 @@ NB = NFFT // 2 + 1
 NERB = 32
 NDF = 96            # deep-filtered bins (0 .. 4.8 kHz)
 DF_ORDER = 5
-LA = 3              # look-ahead frames (32 ms)
+LA = int(os.environ.get("AXDR_LA", 3))   # look-ahead frames (32 ms; 0 = causal, 3.0 LIVE)
 CTX = 2             # past frames in the input
 H = 256
 

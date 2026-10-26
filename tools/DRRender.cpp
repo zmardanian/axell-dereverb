@@ -1,5 +1,6 @@
 // Axell De-Reverb - offline render through the C++ engine: DRRender weights.bin in.wav out.wav [--raw]
-// The output is aligned with the input (the engine's latency removed). --raw: float32 mono files instead of wav.
+// The output is aligned with the input (the engine's latency removed; LIVE weights have none). --raw: float32 mono files
+// instead of wav.
 #include "../Source/Engine.h"
 #include "WavIO.h"
 
@@ -36,7 +37,7 @@ int main (int argc, char** argv)
         return 1;
     axdr::Engine e;
     e.prepare (W, (int) a.ch.size());
-    const int L = axdr::Engine::latency();
+    const int L = e.latency();          // 0 for LIVE weights
     const size_t n = a.frames();
     for (auto& c : a.ch)
         c.resize (n + (size_t) L, 0.0f);

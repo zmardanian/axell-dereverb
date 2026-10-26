@@ -23,18 +23,42 @@ PASS  NaN / Inf in: non-finite output samples @ 96.0 kHz                        
 PASS  LISTEN: processed + removed = the input, full band (error re the input) @ 96.0 kHz                      -138.5919 dB  [-400 .. -110]
 PASS  stereo: left only in -> right channel silent @ 96.0 kHz                                                    0.0000   [0 .. 0]
 PASS  no memory allocation in process() (44.1 / 48 kHz, random blocks)                                           0.0000 allocs  [0 .. 0]
-PASS  CPU, stereo @ 48000 Hz (% of one core)                                                                     3.3362 %  [0 .. 25]
-PASS  CPU, stereo @ 44100 Hz (% of one core)                                                                     3.6205 %  [0 .. 25]
-ALL PASS: 27 of 27 checks passed (2.8 s)
-PASS  parameter count = 3
+PASS  LIVE weights: Resources/dereverb_live.bin loads, a causal network (no look-ahead)                          1.0000   [1 .. 1]
+PASS  LIVE: latency (ms; 0 at 48 kHz, the resamplers' elsewhere) @ 44.1 kHz                                      2.6304 ms  [0 .. 4]
+PASS  LIVE, REDUCTION 0: output = input (random blocks) @ 44.1 kHz                                            -287.7576 dB  [-400 .. -120]
+PASS  LIVE: processed + removed (LISTEN) = the input (error re the input) @ 44.1 kHz                          -140.9042 dB  [-400 .. -100]
+PASS  LIVE: output finite and bounded (max |y|) @ 44.1 kHz                                                       0.3858   [0 .. 1]
+PASS  LIVE: silence in -> silence out (max |y|) @ 44.1 kHz                                                       0.0000   [0 .. 0]
+PASS  LIVE: latency (ms; 0 at 48 kHz, the resamplers' elsewhere) @ 48.0 kHz                                      0.0000 ms  [0 .. 0]
+PASS  LIVE, REDUCTION 0: output = input (random blocks) @ 48.0 kHz                                            -333.6078 dB  [-400 .. -120]
+PASS  LIVE: processed + removed (LISTEN) = the input (error re the input) @ 48.0 kHz                          -164.8077 dB  [-400 .. -100]
+PASS  LIVE: output finite and bounded (max |y|) @ 48.0 kHz                                                       0.3655   [0 .. 1]
+PASS  LIVE: silence in -> silence out (max |y|) @ 48.0 kHz                                                       0.0000   [0 .. 0]
+PASS  LIVE: latency (ms; 0 at 48 kHz, the resamplers' elsewhere) @ 96.0 kHz                                      1.7500 ms  [0 .. 4]
+PASS  LIVE, REDUCTION 0: output = input (random blocks) @ 96.0 kHz                                            -336.6149 dB  [-400 .. -120]
+PASS  LIVE: processed + removed (LISTEN) = the input (error re the input) @ 96.0 kHz                          -138.9341 dB  [-400 .. -100]
+PASS  LIVE: output finite and bounded (max |y|) @ 96.0 kHz                                                       0.3753   [0 .. 1]
+PASS  LIVE: silence in -> silence out (max |y|) @ 96.0 kHz                                                       0.0000   [0 .. 0]
+PASS  LIVE: no memory allocation in process() (44.1 / 48 kHz, random blocks)                                     0.0000 allocs  [0 .. 0]
+PASS  LIVE: CPU, stereo @ 48000 Hz (% of one core)                                                               4.8189 %  [0 .. 30]
+PASS  CPU, stereo @ 48000 Hz (% of one core)                                                                     3.5125 %  [0 .. 25]
+PASS  CPU, stereo @ 44100 Hz (% of one core)                                                                     3.8185 %  [0 .. 25]
+ALL PASS: 45 of 45 checks passed (5.2 s)
+PASS  parameter count = 4
 PASS  parameter 0 is 'reduction'
 PASS  parameter 1 is 'listen'
 PASS  parameter 2 is 'output'
+PASS  parameter 3 is 'mode'
+PASS  default mode: STUDIO (projects from before 3.0 load as they were)
 PASS  defaults: REDUCTION 85 %, LISTEN off, OUTPUT 0 dB (= the Natural preset)
 PASS  the embedded network weights load and verify
 PASS  state restore: all parameters identical
 PASS  every factory preset applies (3)
 PASS  A/B: each slot keeps its own settings
+PASS  LIVE @ 44.1 kHz: latency 116 samples; REDUCTION 0 = the input (-209.2 dB)
+PASS  LIVE -> STUDIO through the latency handshake: switched, latency 2468
+PASS  LIVE @ 48.0 kHz: latency 0 samples; REDUCTION 0 = the input (-300.0 dB)
+PASS  LIVE -> STUDIO through the latency handshake: switched, latency 2560
 PASS  @ 44.1 kHz: latency 2468 samples (56.0 ms); REDUCTION 0 = the input delayed by it (-210.8 dB)
 PASS  @ 44.1 kHz: host bypass = exactly the input delayed by the latency (max error 0)
 PASS  @ 48.0 kHz: latency 2560 samples (53.3 ms); REDUCTION 0 = the input delayed by it (-300.0 dB)
@@ -47,4 +71,4 @@ PASS  mono layout accepted
 PASS  mono: processes; then a rate change and blocks larger than announced: finite
 PASS  editor: opens/closes 5x while processing (100 % size)
 PASS  editor: resizable 75-200 %
-ALL PASS: 21 of 21 plugin checks passed
+ALL PASS: 27 of 27 plugin checks passed

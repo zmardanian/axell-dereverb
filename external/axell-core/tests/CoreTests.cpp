@@ -2,6 +2,7 @@
 //   loudness: EBU Tech 3341 (cases 1-5, stereo) and EBU Tech 3342 (LRA cases 1-4) conformance, at 44.1 / 48 / 96 kHz
 //   true peak: sines of known amplitude, any phase, up to 0.45 fs
 //   dither: grid, TPDF noise level, shaped spectrum; limiter: ceiling; handshake: request / acknowledge / timeout
+//   sibilance: Velvet 1.0 (default), 3.0 and 3.0 LIVE networks on s / sh-shaped noise and a voiced tone, 44.1-192 kHz
 #include "../include/axell/dsp/Dither.h"
 #include "../include/axell/dsp/LatencyHandshake.h"
 #include "../include/axell/dsp/MasterLimiter.h"
@@ -9,6 +10,10 @@
 #include "../include/axell/dsp/TruePeak.h"
 #include "../include/axell/dsp/TruePeakLimiter.h"
 
+#include <axell/dsp/SibilanceDetector.h>
+#include <axell/dsp/VoicePresence.h>
+#include <axell/dsp/MinPhase.h>
+#include <cmath>
 #include <cstdio>
 #include <random>
 #include <string>
@@ -211,6 +216,41 @@ int main()
         for (size_t i = (size_t) Lat; i < q.size(); ++i)
             e = std::max (e, (double) std::abs (q2[i] - q[i - (size_t) Lat]));
         check ("master limiter below the ceiling: output = input delayed by latency()" + r, e, 0, 0, "");
+        // VOICE HOLD (pause flags): a loud tone (limited ~9 dB), then a quiet one flagged as a pause -> the gain stays at
+        // the voice's; a loud burst inside the "pause" still never passes the ceiling
+        {
+            MasterLimiter vh;
+            vh.prepare (fs, (int) (0.005 * fs));
+            vh.setLookahead ((int) (0.002 * fs));
+            vh.reset();
+            vh.setParams (-1.0f, 120.0f, MasterLimiter::Style::transparent, 1.0f);
+            const size_t n1 = (size_t) fs, n2 = (size_t) (0.6 * fs), nb = (size_t) (0.05 * fs);
+            std::vector<float> x (n1 + n2 + nb + n2);
+            std::vector<uint8_t> pz (x.size(), 0);
+            for (size_t i = 0; i < x.size(); ++i)
+            {
+                const double amp = i < n1 ? 2.5 : (i >= n1 + n2 && i < n1 + n2 + nb ? 4.0 : 0.01);
+                x[i] = (float) (amp * std::sin (2 * 3.141592653589793 * 997.0 * i / fs));
+                pz[i] = i >= n1 ? 1 : 0;
+            }
+            float* vio[1] = { x.data() };
+            float grHeld = 0.0f;
+            for (size_t pos = 0; pos < x.size(); pos += 256)
+            {
+                float* b[1] = { x.data() + pos };
+                const int m = (int) std::min<size_t> (256, x.size() - pos);
+                vh.process (b, 1, m, pz.data() + pos);
+                if (pos <= n1 + (size_t) (0.4 * fs) && pos + 256 > n1 + (size_t) (0.4 * fs))
+                    grHeld = vh.gainReductionDb (0);
+            }
+            (void) vio;
+            double tp = 0.0;
+            for (float v : x)
+                tp = std::max (tp, (double) std::abs (v));
+            check ("master limiter VOICE HOLD: gain reduction 0.4 s into a pause (voice ~8.9 dB)" + r, grHeld, 7.5, 9.5, "dB");
+            check ("master limiter VOICE HOLD: a burst inside the pause stays under the ceiling (sample peak)" + r,
+                   20 * std::log10 (tp), -60, -1.0, "dBFS");
+        }
         check ("master limiter latency = 64 + lookahead" + r, Lat, 64 + (int) (0.002 * fs), 64 + (int) (0.002 * fs), "samples");
         // program dependence: after 2 s of sustained limiting the release is slower than after one short peak
         auto recover = [&] (double holdSecs)
@@ -322,6 +362,177 @@ int main()
             r = h.ready (300, true, 512);
         check ("handshake: unanswered for 0.5 s -> withdrawn, holding the old one", (! r && h.isHolding()) ? 1 : 0, 1, 1, "");
         check ("handshake: a withdrawn request cannot be taken", h.take (lat) ? 1 : 0, 0, 0, "");
+    }
+
+    // sibilance detector: Velvet 1.0's network by default (Axell Gate 2.0 was trained on its output), Velvet 3.0's and its
+    // causal LIVE network on request; every network finds noise bursts and leaves a voiced tone alone, at every rate
+    for (int kind = 0; kind < 3; ++kind)
+        for (double fs : { 44100.0, 48000.0, 96000.0, 192000.0 })
+        {
+            const auto cfg = kind == 0 ? voice::DetectorConfig {} : kind == 1 ? voice::DetectorConfig::velvet3() : voice::DetectorConfig::live();
+            voice::SibilanceDetector d;
+            d.prepare (fs, cfg);
+            std::mt19937 g (7);
+            std::normal_distribution<double> nd;
+            // sibilant-like noise: white noise through two resonances, alternately "s" (7.5 kHz) and "sh" (3.4 kHz), the
+            // shapes real sibilants have (a flat hiss is not one: Velvet 3.0's network rightly gives it p ~ 0.35); the
+            // band power is kept the same at every rate
+            auto bandPass = [fs] (Biquad& b, double f, double q)
+            {
+                const double w = 2.0 * 3.141592653589793 * f / fs, al = std::sin (w) / (2.0 * q), a0 = 1.0 + al;
+                b.setRaw (al / a0, 0.0, -al / a0, -2.0 * std::cos (w) / a0, (1.0 - al) / a0);
+            };
+            Biquad s1, s2, h1, h2;
+            bandPass (s1, 7500.0, 2.5);
+            bandPass (s2, 7500.0, 2.5);
+            bandPass (h1, 3400.0, 1.5);
+            bandPass (h2, 3400.0, 1.5);
+            const double norm = std::sqrt (fs / 48000.0);
+            double ph = 0.0, ps = 0, pv = 0;
+            int ns = 0, nv = 0;
+            const size_t seg = (size_t) (0.3 * fs);
+            for (size_t i = 0; i < (size_t) (6.0 * fs); ++i)
+            {
+                const bool noise = (i / seg) % 2 == 1;
+                ph += 2.0 * 3.141592653589793 * 140.0 / fs;
+                double v = 0.0;
+                for (int h = 1; h < 20; ++h)
+                    v += std::sin (h * ph) / h * std::exp (-std::pow ((h * 140.0 - 700.0) / 600.0, 2));
+                const double w0 = nd (g);
+                const double n = norm * ((i / seg) % 4 == 1 ? s2.process (s1.process (w0, 0), 0) : h2.process (h1.process (w0, 0), 0));
+                const float x = (float) (noise ? 0.6 * n : 0.2 * v);
+                if (d.push (x) && (size_t) d.out().center > (size_t) fs)
+                {
+                    const size_t c = (size_t) d.out().center, u = c % seg;
+                    if (u > seg / 5 && u < seg - seg / 5)
+                    {
+                        if ((c / seg) % 2 == 1) { ps += d.out().p; ++ns; }
+                        else { pv += d.out().p; ++nv; }
+                    }
+                }
+            }
+            const std::string r = std::string (kind == 0 ? " [Velvet 1.0]" : kind == 1 ? " [Velvet 3.0]" : " [Velvet 3.0 LIVE]") + " @ "
+                                  + std::to_string ((int) fs);
+            check ("sibilance: mean probability on s / sh-shaped noise" + r, ps / ns, 0.6, 1.0, "");
+            check ("sibilance: mean probability on a voiced tone" + r, pv / nv, 0.0, 0.05, "");
+            if (kind == 2)
+                check ("sibilance LIVE: frames reported at once (no smoothing delay)" + r, (double) d.frameDelay(), d.windowSize() / 2, d.windowSize() / 2, "smp");
+        }
+
+
+    // voice decision (Axell Gate 2.0's, shared): a synthetic voice - vowels through formants, 1.6 s phrases, 0.8 s pauses
+    for (double fs : { 44100.0, 48000.0, 96000.0, 192000.0 })
+    {
+        axell::voice::VoicePresence vp;
+        vp.prepare (fs);
+        const std::string r = " @ " + std::to_string ((int) fs);
+        std::mt19937 g (5);
+        std::normal_distribution<double> nd;
+        const double pi = 3.14159265358979323846;
+        double ph = 0, b0 = 0, inV = 0, nV = 0, inP = 0, nP = 0;
+        const size_t n = (size_t) (9.6 * fs);
+        for (size_t i = 0; i < n; ++i)
+        {
+            const double t = (double) i / fs, phrase = std::fmod (t, 2.4), syl = std::fmod (phrase, 0.32);
+            double y = 0;
+            if (phrase > 0.2 && phrase < 1.8 && syl < 0.22)
+            {
+                const double f0 = 140.0 + 25.0 * std::sin (2 * pi * 0.6 * t), env = std::min (1.0, std::min (syl, 0.22 - syl) / 0.015);
+                ph += 2 * pi * f0 / fs;
+                for (int h = 1; h * f0 < 8000.0; ++h)
+                {
+                    const double f = h * f0;
+                    y += (std::exp (-std::pow ((f - 650) / 250, 2)) + 0.6 * std::exp (-std::pow ((f - 1150) / 300, 2))
+                          + 0.2 * std::exp (-std::pow ((f - 2600) / 500, 2))) * std::sin (h * ph) / std::sqrt ((double) h);
+                }
+                y *= 0.35 * env;
+            }
+            b0 = 0.997 * b0 + 0.03 * nd (g);
+            vp.push ((float) (0.316 * y + 0.0016 * b0));
+            if (t > 2.4 && phrase > 0.3 && phrase < 1.7)
+                inV += vp.voice() ? 1 : 0, ++nV;
+            if (t > 2.4 && (phrase > 1.9 && phrase < 2.35))
+                inP += vp.voice() ? 1 : 0, ++nP;
+        }
+        check ("voice presence: share of the phrases called voice (their 0.1 s consonant gaps are silent here)" + r, inV / nV, 0.7, 1.0, "");
+        check ("voice presence: share of the pauses called voice" + r, inP / nP, 0.0, 0.1, "");
+        check ("voice presence: decision delay" + r, 1000.0 * vp.frameDelay() / fs, 0.0, 15.0, "ms");
+        axell::voice::VoicePresence q;
+        q.prepare (fs);
+        bool any = false;
+        for (int i = 0; i < (int) fs; ++i)
+        {
+            q.push (0.0f);
+            any = any || q.voice();
+        }
+        check ("voice presence: silence is never voice" + r, any ? 1.0 : 0.0, 0.0, 0.0, "");
+    }
+
+
+    // minimum-phase filter from a magnitude (Velvet 3.0 LIVE's method, shared)
+    {
+        axell::MinPhaseDesigner d;
+        d.prepare (2048, 512);
+        std::vector<float> mag ((size_t) d.bins(), 1.0f), h (512);
+        d.design (mag.data(), h.data());
+        double off = std::abs (h[0] - 1.0);
+        for (int i = 1; i < 512; ++i)
+            off = std::max (off, (double) std::abs (h[(size_t) i]));
+        check ("min-phase: flat magnitude -> identity (max error)", off, 0.0, 1.0e-4, "");
+        // a de-reverb-like magnitude: -12 dB below 300 Hz and above 6 kHz (48 kHz grid), smooth edges
+        for (int k = 0; k < d.bins(); ++k)
+        {
+            const double f = 24000.0 * k / (d.bins() - 1);
+            const double lo = 1.0 / (1.0 + std::exp ((300.0 - f) / 40.0)), hi = 1.0 / (1.0 + std::exp ((f - 6000.0) / 400.0));
+            mag[(size_t) k] = (float) (0.25 + 0.75 * lo * hi);
+        }
+        d.design (mag.data(), h.data());
+        double worst = 0.0, eFront = 0.0, eAll = 0.0;
+        for (double f : { 100.0, 1000.0, 3000.0, 12000.0 })
+        {
+            double re = 0.0, im = 0.0;
+            for (int i = 0; i < 512; ++i)
+            {
+                re += h[(size_t) i] * std::cos (2 * 3.14159265358979323846 * f * i / 48000.0);
+                im -= h[(size_t) i] * std::sin (2 * 3.14159265358979323846 * f * i / 48000.0);
+            }
+            const int k = (int) std::lround (f / 24000.0 * (d.bins() - 1));
+            worst = std::max (worst, std::abs (20.0 * std::log10 (std::hypot (re, im) / mag[(size_t) k])));
+        }
+        for (int i = 0; i < 512; ++i)
+        {
+            eAll += (double) h[(size_t) i] * h[(size_t) i];
+            if (i < 64)
+                eFront += (double) h[(size_t) i] * h[(size_t) i];
+        }
+        check ("min-phase: magnitude at 100 Hz / 1 / 3 / 12 kHz vs the design (worst)", worst, 0.0, 0.3, "dB");
+        check ("min-phase: share of the energy in the first 1.3 ms", eFront / eAll, 0.95, 1.0, "");
+        // the time-varying FIR: identity in, identity out; a new filter fades in without a step
+        axell::MinPhaseFir fir;
+        fir.reset();                                           // before prepare(): must be harmless
+        fir.prepare (512, 480);
+        double e1 = 0.0;
+        for (int i = 0; i < 2000; ++i)
+        {
+            const float x = (float) std::sin (0.05 * i);
+            e1 = std::max (e1, (double) std::abs (fir.process (x) - x));
+        }
+        check ("min-phase FIR: identity before the first filter (max error)", e1, 0.0, 1.0e-6, "");
+        fir.setFilter (h.data());
+        std::vector<float> xin (4000), yout (4000);
+        for (int i = 0; i < 4000; ++i)
+            xin[(size_t) i] = (float) std::sin (0.031 * i) * (i % 7 == 0 ? 1.0f : 0.3f);
+        for (int i = 0; i < 4000; ++i)
+            yout[(size_t) i] = fir.process (xin[(size_t) i]);
+        double e2 = 0.0;
+        for (int i = 2000; i < 4000; ++i)                      // after the fade: the filter exactly
+        {
+            double ref = 0.0;
+            for (int k = 0; k < 512; ++k)
+                ref += (double) h[(size_t) k] * xin[(size_t) (i - k)];
+            e2 = std::max (e2, std::abs (ref - yout[(size_t) i]));
+        }
+        check ("min-phase FIR: after the fade = direct convolution (max error)", e2, 0.0, 1.0e-4, "");
     }
 
     std::printf ("%s: %d of %d checks passed\n", fails == 0 ? "ALL PASS" : "FAILURES", checks - fails, checks);

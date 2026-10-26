@@ -38,7 +38,7 @@ public:
         if (resampled)
         {
             // make the total delay a whole number of host samples: the output resampler adds the missing fraction
-            const double d = up[0].delayIn() + (Engine::latency() + down[0].delayIn()) * fsHost / (double) kFs + kPrime;
+            const double d = up[0].delayIn() + (engine.latency() + down[0].delayIn()) * fsHost / (double) kFs + kPrime;
             const double add48 = (std::ceil (d - 1.0e-9) - d) * kFs / fsHost;
             for (int c = 0; c < nch; ++c)
             {
@@ -51,7 +51,7 @@ public:
             buf48[(size_t) c].assign ((size_t) max48, 0.0f);
             dry48[(size_t) c].assign ((size_t) max48, 0.0f);
             dryFifo[(size_t) c].assign ((size_t) (kPrime + 2 * maxB + 512), 0.0f);
-            dryRing48[(size_t) c].assign ((size_t) Engine::latency(), 0.0f);
+            dryRing48[(size_t) c].assign ((size_t) std::max (1, engine.latency()), 0.0f);
             outFifo[(size_t) c].assign ((size_t) (kPrime + 2 * maxB + 512), 0.0f);
             tmpOut[(size_t) c].assign ((size_t) (maxB + 512), 0.0f);
         }
@@ -82,8 +82,8 @@ public:
     int latencySamples() const noexcept
     {
         if (! resampled)
-            return Engine::latency();
-        const double d = up[0].delayIn() + (Engine::latency() + down[0].delayIn()) * fsHost / (double) kFs + kPrime;
+            return engine.latency();
+        const double d = up[0].delayIn() + (engine.latency() + down[0].delayIn()) * fsHost / (double) kFs + kPrime;
         return (int) std::lround (d);
     }
 
@@ -115,11 +115,16 @@ public:
             p48[c] = buf48[(size_t) c].data();
         }
         // the unprocessed copy at 48 kHz, delayed like the engine's output
-        const int L48 = Engine::latency();
+        const int L48 = engine.latency();
         for (int c = 0; c < ch; ++c)
         {
             auto& r = dryRing48[(size_t) c];
             auto& d = dry48[(size_t) c];
+            if (L48 == 0)                                  // LIVE: the engine adds no delay
+            {
+                std::copy (p48[c], p48[c] + m48, d.begin());
+                continue;
+            }
             int pos = ring48Pos;
             for (int i = 0; i < m48; ++i)
             {
@@ -129,7 +134,8 @@ public:
                 pos = (pos + 1) % L48;
             }
         }
-        ring48Pos = (ring48Pos + m48) % L48;
+        if (L48 > 0)
+            ring48Pos = (ring48Pos + m48) % L48;
         engine.process (p48, ch, m48);
         // both back to the host rate, into the FIFOs; then exactly n samples out
         int got = 0;

@@ -27,6 +27,8 @@ void prepare (DeReverbProcessor& p, double fs = 48000.0, int block = 256, int ch
     p.setPlayConfigDetails (ch, ch, fs, block);
     p.prepareToPlay (fs, block);
 }
+void pumpMessages (int ms) { juce::MessageManager::getInstance()->runDispatchLoopUntil (ms); }
+
 std::vector<std::vector<float>> render (DeReverbProcessor& p, std::vector<std::vector<float>> x, int block, bool bypassed = false)
 {
     const int nc = (int) x.size();
@@ -73,14 +75,16 @@ int main()
     //== 1. parameters: frozen IDs and order, defaults; the embedded weights load
     {
         DeReverbProcessor p;
-        const juce::StringArray frozen { "reduction", "listen", "output" };
+        const juce::StringArray frozen { "reduction", "listen", "output", "mode" };   // "mode": 3.0 (version hint 2)
         auto& params = p.getParameters();
-        check (params.size() == frozen.size(), "parameter count = 3");
+        check (params.size() == frozen.size(), "parameter count = 4");
         for (int i = 0; i < params.size() && i < frozen.size(); ++i)
         {
             auto* wp = dynamic_cast<juce::AudioProcessorParameterWithID*> (params[i]);
-            check (wp != nullptr && wp->getParameterID() == frozen[i] && wp->getVersionHint() == 1, "parameter " + juce::String (i) + " is '" + frozen[i] + "'");
+            check (wp != nullptr && wp->getParameterID() == frozen[i] && wp->getVersionHint() == (i < 3 ? 1 : 2),
+                   "parameter " + juce::String (i) + " is '" + frozen[i] + "'");
         }
+        check (getParam (p, "mode") < 0.5f, "default mode: STUDIO (projects from before 3.0 load as they were)");
         check (std::abs (getParam (p, "reduction") - 85.0f) < 1e-4f && getParam (p, "listen") < 0.5f && std::abs (getParam (p, "output")) < 1e-4f,
                "defaults: REDUCTION 85 %, LISTEN off, OUTPUT 0 dB (= the Natural preset)");
         check (p.weightsOk(), "the embedded network weights load and verify");
@@ -119,6 +123,38 @@ int main()
         p.selectSlot (1);
         const float b = getParam (p, "reduction");
         check (std::abs (a - 30.0f) < 1e-3f && std::abs (b - 80.0f) < 1e-3f, "A/B: each slot keeps its own settings");
+    }
+
+    //== 3b. LIVE: no latency at 48 kHz; STUDIO <-> LIVE without a host switches at once and reports the new latency
+    for (double fs : { 44100.0, 48000.0 })
+    {
+        DeReverbProcessor p;
+        setParam (p, "mode", 1.0f);
+        prepare (p, fs, 256);
+        const int L = p.getLatencySamples();
+        const auto x = voiceLike ((int) fs * 2, fs, 3);
+        setParam (p, "reduction", 0.0f);
+        p.reset();
+        const auto y0 = render (p, { x, x }, 256);
+        double e = 0, r = 0;
+        for (size_t i = (size_t) fs / 2; i + (size_t) fs / 8 < x.size(); ++i)
+        {
+            e += (double) (y0[0][i] - x[i - (size_t) L]) * (y0[0][i] - x[i - (size_t) L]);
+            r += (double) x[i - (size_t) L] * x[i - (size_t) L];
+        }
+        check (p.liveActive() && (fs == 48000.0 ? L == 0 : L < fs * 0.004) && 10 * std::log10 (e / r + 1e-30) < -120,
+               "LIVE @ " + juce::String (fs / 1000.0, 1) + " kHz: latency " + juce::String (L) + " samples; REDUCTION 0 = the input ("
+                   + juce::String (10 * std::log10 (e / r + 1e-30), 1) + " dB)");
+        setParam (p, "mode", 0.0f);
+        setParam (p, "reduction", 85.0f);
+        const std::vector<float> shortX (x.begin(), x.begin() + (long) (0.2 * fs));   // 0.2 s per step, as a host
+        for (int k = 0; k < 4; ++k)                                                     // with a live message thread
+        {
+            render (p, { shortX, shortX }, 256);   // the audio thread fades out and asks for the new latency
+            pumpMessages (60);           // the 20 Hz timer reports it to the host; the next blocks play it
+        }
+        check (! p.liveActive() && p.getLatencySamples() > L, "LIVE -> STUDIO through the latency handshake: switched, latency "
+                                                               + juce::String (p.getLatencySamples()));
     }
 
     //== 4. latency per rate, reported to the host; REDUCTION 0 transparent; host bypass = the input delayed exactly

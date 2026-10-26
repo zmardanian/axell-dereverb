@@ -13,16 +13,39 @@ PASS  LISTEN: processed + removed = the input, full band (error re the input) @ 
 PASS  0.43 s of digital silence first: the take comes out identical @ 48.0 kHz                                -330.0751 dB  [-400 .. -140]
 PASS  stereo: left only in -> right channel silent @ 48.0 kHz                                                    0.0000   [0 .. 0]
 PASS  no memory allocation in process() (44.1 / 48 kHz, random blocks)                                           0.0000 allocs  [0 .. 0]
-ALL PASS: 15 of 15 checks passed (25.1 s)
-PASS  parameter count = 3
+PASS  LIVE weights: Resources/dereverb_live.bin loads, a causal network (no look-ahead)                          1.0000   [1 .. 1]
+PASS  LIVE: latency (ms; 0 at 48 kHz, the resamplers' elsewhere) @ 44.1 kHz                                      2.6304 ms  [0 .. 4]
+PASS  LIVE, REDUCTION 0: output = input (random blocks) @ 44.1 kHz                                            -287.7576 dB  [-400 .. -120]
+PASS  LIVE: processed + removed (LISTEN) = the input (error re the input) @ 44.1 kHz                          -141.0192 dB  [-400 .. -100]
+PASS  LIVE: output finite and bounded (max |y|) @ 44.1 kHz                                                       0.3609   [0 .. 1]
+PASS  LIVE: silence in -> silence out (max |y|) @ 44.1 kHz                                                       0.0000   [0 .. 0]
+PASS  LIVE: latency (ms; 0 at 48 kHz, the resamplers' elsewhere) @ 48.0 kHz                                      0.0000 ms  [0 .. 0]
+PASS  LIVE, REDUCTION 0: output = input (random blocks) @ 48.0 kHz                                            -333.6078 dB  [-400 .. -120]
+PASS  LIVE: processed + removed (LISTEN) = the input (error re the input) @ 48.0 kHz                          -167.2484 dB  [-400 .. -100]
+PASS  LIVE: output finite and bounded (max |y|) @ 48.0 kHz                                                       0.3464   [0 .. 1]
+PASS  LIVE: silence in -> silence out (max |y|) @ 48.0 kHz                                                       0.0000   [0 .. 0]
+PASS  LIVE: latency (ms; 0 at 48 kHz, the resamplers' elsewhere) @ 96.0 kHz                                      1.7500 ms  [0 .. 4]
+PASS  LIVE, REDUCTION 0: output = input (random blocks) @ 96.0 kHz                                            -336.6149 dB  [-400 .. -120]
+PASS  LIVE: processed + removed (LISTEN) = the input (error re the input) @ 96.0 kHz                          -138.9823 dB  [-400 .. -100]
+PASS  LIVE: output finite and bounded (max |y|) @ 96.0 kHz                                                       0.3857   [0 .. 1]
+PASS  LIVE: silence in -> silence out (max |y|) @ 96.0 kHz                                                       0.0000   [0 .. 0]
+PASS  LIVE: no memory allocation in process() (44.1 / 48 kHz, random blocks)                                     0.0000 allocs  [0 .. 0]
+ALL PASS: 32 of 32 checks passed (62.3 s)
+PASS  parameter count = 4
 PASS  parameter 0 is 'reduction'
 PASS  parameter 1 is 'listen'
 PASS  parameter 2 is 'output'
+PASS  parameter 3 is 'mode'
+PASS  default mode: STUDIO (projects from before 3.0 load as they were)
 PASS  defaults: REDUCTION 85 %, LISTEN off, OUTPUT 0 dB (= the Natural preset)
 PASS  the embedded network weights load and verify
 PASS  state restore: all parameters identical
 PASS  every factory preset applies (3)
 PASS  A/B: each slot keeps its own settings
+PASS  LIVE @ 44.1 kHz: latency 116 samples; REDUCTION 0 = the input (-209.2 dB)
+PASS  LIVE -> STUDIO through the latency handshake: switched, latency 2468
+PASS  LIVE @ 48.0 kHz: latency 0 samples; REDUCTION 0 = the input (-300.0 dB)
+PASS  LIVE -> STUDIO through the latency handshake: switched, latency 2560
 PASS  @ 44.1 kHz: latency 2468 samples (56.0 ms); REDUCTION 0 = the input delayed by it (-210.8 dB)
 PASS  @ 44.1 kHz: host bypass = exactly the input delayed by the latency (max error 0)
 PASS  @ 48.0 kHz: latency 2560 samples (53.3 ms); REDUCTION 0 = the input delayed by it (-300.0 dB)
@@ -35,4 +58,4 @@ PASS  mono layout accepted
 PASS  mono: processes; then a rate change and blocks larger than announced: finite
 PASS  editor: opens/closes 5x while processing (100 % size)
 PASS  editor: resizable 75-200 %
-ALL PASS: 21 of 21 plugin checks passed
+ALL PASS: 27 of 27 plugin checks passed

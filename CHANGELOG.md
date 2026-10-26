@@ -1,5 +1,17 @@
 # Changelog
 
+## 3.0.0 - 2026-10-26
+- **LIVE mode (new): zero latency, for recording.** A STUDIO / LIVE switch. LIVE runs a causal version of the
+  network (fine-tuned from 2.0's) as a minimum-phase filter that changes every 10.7 ms (Axell Velvet 3.0's method),
+  with an onset guard that keeps word starts intact. On 48 held-out examples it removes 3.7 dB of room (STUDIO 5.7)
+  with ViSQOL 4.00 (input 3.96, STUDIO 4.13) and no more damage to the voice than STUDIO - and no delay, so you hear
+  yourself without the room while you record. The Axell Signature Dojo's tracking chain now includes it. (D17)
+- **Axell's Dojo look**: the family emblem, a brush-written title with De-Reverb's seal (静, "stillness") and
+  De-Reverb's own deep-blue ground.
+- Verified: DSP 45 checks (STUDIO parity with the trained model -134 dB, LIVE: zero latency, exact at REDUCTION 0, no
+  allocation), plugin 27 (STUDIO <-> LIVE through the latency handshake), ASan + UBSan clean, independent audit 15/15,
+  pluginval strictness 10, Steinberg's VST3 validator 47/47.
+
 ## 2.0.0 - 2026-10-17
 Rap and spoken word first.
 

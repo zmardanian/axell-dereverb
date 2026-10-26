@@ -26,6 +26,9 @@ APVTS::ParameterLayout DeReverbProcessor::createLayout()
     p.push_back (std::make_unique<AudioParameterBool> (ParameterID { "listen", 1 }, "Listen: Removed", false));
     p.push_back (std::make_unique<AudioParameterFloat> (ParameterID { "output", 1 }, "Output",
         NormalisableRange<float> (-24.0f, 24.0f, 0.1f), 0.0f, fmt (dbText)));
+    // 3.0: STUDIO (the look-ahead network, 53 ms) or LIVE (a causal network, no latency: for tracking). Projects saved
+    // before 3.0 load in STUDIO (the default), as they were.
+    p.push_back (std::make_unique<AudioParameterChoice> (ParameterID { "mode", 2 }, "Mode", StringArray { "Studio", "Live" }, 0));
     return { p.begin(), p.end() };
 }
 
@@ -36,9 +39,13 @@ DeReverbProcessor::DeReverbProcessor()
       apvts (*this, nullptr, "PARAMS", createLayout())
 {
     weights.load (BinaryData::dereverb_bin, (size_t) BinaryData::dereverb_binSize);
+    weightsLive.load (BinaryData::dereverb_live_bin, (size_t) BinaryData::dereverb_live_binSize);
+    jassert (weights.la == axdr::kLa && weightsLive.la == 0);
     pReduction = apvts.getRawParameterValue ("reduction");
     pListen = apvts.getRawParameterValue ("listen");
     pOutput = apvts.getRawParameterValue ("output");
+    pMode = apvts.getRawParameterValue ("mode");
+    startTimerHz (20);
 }
 
 bool DeReverbProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
@@ -55,12 +62,20 @@ void DeReverbProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     for (auto& b : inCopy)
         b.assign ((size_t) maxBlock, 0.0f);
     dr.prepare (weights, sampleRate, preparedChannels, maxBlock);
-    latency = dr.latencySamples();
+    drLive.prepare (weightsLive, sampleRate, preparedChannels, maxBlock);
+    activeMode = pMode->load() > 0.5f ? 1 : 0;
+    latency = latencyOf (activeMode);
     setLatencySamples (latency);
+    hs.prepared (latency, sampleRate);
+    hs.setNonRealtime (isNonRealtime());
+    hs.setHostLatency (getLatencySamples());
     for (auto& d : dryLine)
-        d.assign ((size_t) latency + 1, 0.0f);
+        d.assign ((size_t) juce::jmax (dr.latencySamples(), drLive.latencySamples()) + 1, 0.0f);
     dryPos = 0;
     bypassStep = (float) (1.0 / juce::jmax (1.0, 0.01 * sampleRate));
+    fadeStep = (float) (1.0 / juce::jmax (1.0, 0.003 * sampleRate));
+    fade = 1.0f;
+    warm = 0;
     reset();
 }
 
@@ -69,6 +84,7 @@ void DeReverbProcessor::reset()
     if (preparedChannels == 0)
         return;
     dr.reset();
+    drLive.reset();
     for (auto& d : dryLine)
         std::fill (d.begin(), d.end(), 0.0f);
     dryPos = 0;
@@ -83,28 +99,60 @@ void DeReverbProcessor::run (juce::AudioBuffer<float>& buffer, bool bypass)
         buffer.clear (c, 0, n);
     if (preparedChannels == 0 || n == 0 || ! weights.ok)
         return;
-    dr.setAmount (pReduction->load() * 0.01f);
-    dr.setListen (pListen->load() > 0.5f);
+    for (auto* d : { &dr, &drLive })
+    {
+        d->setAmount (pReduction->load() * 0.01f);
+        d->setListen (pListen->load() > 0.5f);
+    }
     const float outTarget = juce::Decibels::decibelsToGain (pOutput->load());
     const float target = bypass ? 1.0f : 0.0f;
-    const int D = latency + 1;
+    const int want = pMode->load() > 0.5f ? 1 : 0;
     // in chunks no larger than prepared (a host may exceed its announced block size)
     for (int off = 0; off < n; off += maxChunk)
     {
         const int m = juce::jmin (maxChunk, n - off);
+        // STUDIO <-> LIVE: fade out (3 ms), switch once the host compensates the new latency (latency handshake),
+        // stay muted until the new path holds valid audio, fade in - no clicks, never misaligned
+        float fadeTgt = 1.0f;
+        {
+            const int mode = activeMode.load();
+            const int tgt = hs.isHolding() ? mode : want;
+            const bool ready = hs.ready (latencyOf (tgt), fade <= 0.0f, m);
+            if (tgt != mode)
+            {
+                fadeTgt = 0.0f;
+                if (fade <= 0.0f && ready)
+                {
+                    activeMode = tgt;
+                    (tgt == 1 ? drLive : dr).reset();
+                    latency = latencyOf (tgt);
+                    for (auto& d : dryLine)
+                        std::fill (d.begin(), d.end(), 0.0f);
+                    dryPos = 0;
+                    warm = latency + (hs.tracking() ? maxChunk : 0);
+                }
+            }
+            else
+                fadeTgt = (! ready || warm > 0) ? 0.0f : 1.0f;
+            if (warm > 0)
+                warm = juce::jmax (0, warm - m);
+        }
+        auto& active = activeMode.load() == 1 ? drLive : dr;
+        const int D = latency + 1;
         float* io[2] {};
         for (int c = 0; c < nch; ++c)
         {
             io[c] = buffer.getWritePointer (c, off);
             std::copy (io[c], io[c] + m, inCopy[(size_t) c].begin());
         }
-        dr.process (io, nch, m);
+        active.process (io, nch, m);
         for (int i = 0; i < m; ++i)
         {
             outGain += (outTarget - outGain) * 0.002f;
             if (std::abs (outGain - outTarget) < 1.0e-4f * std::max (1.0f, outTarget)) // float stall (see Engine.h)
                 outGain = outTarget;
             bypassAmt = target > bypassAmt ? juce::jmin (target, bypassAmt + bypassStep) : juce::jmax (target, bypassAmt - bypassStep);
+            fade = fadeTgt > fade ? juce::jmin (fadeTgt, fade + fadeStep) : juce::jmax (fadeTgt, fade - fadeStep);
             const int rd = (dryPos + 1) % D; // written exactly `latency` samples ago
             for (int c = 0; c < nch; ++c)
             {
@@ -116,10 +164,37 @@ void DeReverbProcessor::run (juce::AudioBuffer<float>& buffer, bool bypass)
                     y = dry;
                 else if (bypassAmt > 0.0f)
                     y += (dry - y) * bypassAmt;
-                io[c][i] = y;
+                io[c][i] = y * fade;
             }
             dryPos = rd;
         }
+    }
+}
+
+void DeReverbProcessor::setNonRealtime (bool isOffline) noexcept
+{
+    AudioProcessor::setNonRealtime (isOffline);
+    hs.setNonRealtime (isOffline);
+}
+
+// message thread: the latency handshake (a new latency plays only after it was reported to the host)
+void DeReverbProcessor::timerCallback()
+{
+    hs.heartbeat();
+    int lat = 0;
+    if (preparedChannels > 0 && hs.take (lat))
+    {
+        if (lat != getLatencySamples())
+            setLatencySamples (lat);
+        hs.ack();
+    }
+    // a host that does not compensate in real time (offline render, a test host): the switch happened at once - report
+    // the latency that plays now
+    else if (preparedChannels > 0 && ! hs.tracking())
+    {
+        const int now = latencyOf (activeMode.load());
+        if (now != getLatencySamples())
+            setLatencySamples (now);
     }
 }
 

@@ -1,9 +1,12 @@
 #pragma once
-// Axell core - sibilance detector (from Axell Velvet 1.0, identical numerics). Every 2 ms hop, on a mono signal: a
+// Axell core - sibilance detector (from Axell Velvet, identical numerics: 1.0's features, 3.0's network choice and
+// causal mode). Every 2 ms hop, on a mono signal: a
 // 12 ms Hann STFT and a YIN aperiodicity measure (de Cheveigne & Kawahara, JASA 2002) give ten features (aperiodicity,
 // HF flatness, level against the voice's own loud level, six band levels and the 1.5-14 kHz total against the voice
 // body), adapted to the singer and smoothed over +-2 hops; with five of them averaged over the past 48 ms they feed a
-// 19 -> 32 -> 1 network (SibilanceModel.h) that gives the probability of a sibilant. The frames also carry the raw
+// 19 -> 32 -> 1 network that gives the probability of a sibilant. Networks: Velvet 1.0's (SibilanceModel.h, the default:
+// Axell Gate 2.0 was trained on its output), Velvet 3.0's (SibilanceModel3.h, 111 voices; DetectorConfig::network = 3)
+// and Velvet 3.0's LIVE network for the causal mode (SibilanceModel3Live.h, DetectorConfig::live()). The frames also carry the raw
 // features, band energies, body / frame level, f0 and aperiodicity for other detectors (Axell Gate's voice activity).
 // Real-time safe: prepare() allocates; push() never allocates, locks or throws.
 #include <axell/dsp/Fft.h>
@@ -17,6 +20,8 @@
 #include <vector>
 
 #include "SibilanceModel.h"
+#include "SibilanceModel3.h"
+#include "SibilanceModel3Live.h"
 
 namespace axell::voice
 {
@@ -27,7 +32,19 @@ constexpr int kNumCtx = 5;                 // inputs also averaged over the past
 constexpr int kCtxIdx[kNumCtx] = { 0, 1, 9, 10, 11 };
 constexpr int kCtxFrames = 24;
 constexpr int kNumDesign = kNumBase + kNumCtx;
-static_assert (kNumDesign == model::kInputs, "DetectorModel.h does not match the detector");
+static_assert (kNumDesign == model::kInputs && kNumDesign == model3::kInputs && kNumDesign == model3_live::kInputs,
+               "a sibilance network does not match the detector");
+
+struct ModelRef
+{
+    int hidden;
+    const float *mu, *sd, *w1, *b1, *w2;
+    float b2;
+};
+inline constexpr ModelRef kVelvet1Model { model::kHidden, model::kMu, model::kSd, model::kW1, model::kB1, model::kW2, model::kB2 };
+inline constexpr ModelRef kVelvet3Model { model3::kHidden, model3::kMu, model3::kSd, model3::kW1, model3::kB1, model3::kW2, model3::kB2 };
+inline constexpr ModelRef kVelvet3LiveModel { model3_live::kHidden, model3_live::kMu, model3_live::kSd, model3_live::kW1,
+                                              model3_live::kB1, model3_live::kW2, model3_live::kB2 };
 constexpr int kNumBands = 10;  // de-esser bands
 constexpr double kEdges[kNumBands + 1] = { 2000, 2800, 3600, 4500, 5600, 7000, 8500, 10000, 12000, 14500, 17000 };
 constexpr double kFeatBands[6][2] = { { 1500, 2500 }, { 2500, 3500 }, { 3500, 5000 }, { 5000, 7000 }, { 7000, 10000 }, { 10000, 14000 } };
@@ -35,8 +52,25 @@ constexpr double kFeatBands[6][2] = { { 1500, 2500 }, { 2500, 3500 }, { 3500, 50
 struct DetectorConfig
 {
     double winMs = 12.0, hopMs = 2.0;
-    int smooth = 2;                    // feature smoothing +-hops
+    int smooth = 2;                    // feature smoothing +-hops (causal: the past 2 * smooth + 1 frames)
     double yinFmin = 70.0, yinFmax = 500.0, yinThresh = 0.15;
+    int network = 1;                   // 1: Velvet 1.0's network (default), 3: Velvet 3.0's (111 voices)
+    // causal (Velvet 3.0 LIVE): every frame as soon as its window is complete, past-only smoothing, the LIVE network
+    bool causal = false;
+    static DetectorConfig live() noexcept
+    {
+        DetectorConfig c;
+        c.causal = true;
+        c.smooth = 1;
+        c.network = 3;
+        return c;
+    }
+    static DetectorConfig velvet3() noexcept
+    {
+        DetectorConfig c;
+        c.network = 3;
+        return c;
+    }
 };
 
 struct DetFrame
@@ -74,6 +108,7 @@ public:
     {
         fs = sampleRate;
         cfg = c;
+        net = cfg.causal ? &kVelvet3LiveModel : cfg.network == 3 ? &kVelvet3Model : &kVelvet1Model;
         hop = std::max (1, (int) std::lround (cfg.hopMs * 0.001 * fs));
         win = std::max (16, (int) std::lround (cfg.winMs * 0.001 * fs));
         nfft = 16;
@@ -152,7 +187,8 @@ public:
     int smoothing() const noexcept { return cfg.smooth; }
     double sampleRate() const noexcept { return fs; }
     // samples from the newest input to the centre of the frame push() returns
-    int frameDelay() const noexcept { return win / 2 + cfg.smooth * hop; }
+    int frameDelay() const noexcept { return win / 2 + (cfg.causal ? 0 : cfg.smooth * hop); }
+    bool causal() const noexcept { return cfg.causal; }
 
     // feed one mono sample; true when out() holds a new frame (centre = newest - frameDelay())
     bool push (float x) noexcept
@@ -171,24 +207,24 @@ public:
             return false;
         hopCount = 0;
         analyse();
-        return frames > cfg.smooth;
+        return frames > (cfg.causal ? 0 : cfg.smooth);
     }
 
     const DetFrame& out() const noexcept { return result; }
 
-    // the network on the design vector
-    static float probability (const float* x) noexcept
+    // a network on the design vector (default: Velvet 1.0's)
+    static float probability (const float* x, const ModelRef& m = kVelvet1Model) noexcept
     {
         float z[kNumDesign];
         for (int i = 0; i < kNumDesign; ++i)
-            z[i] = (x[i] - model::kMu[i]) / model::kSd[i];
-        float o = model::kB2;
-        for (int j = 0; j < model::kHidden; ++j)
+            z[i] = (x[i] - m.mu[i]) / m.sd[i];
+        float o = m.b2;
+        for (int j = 0; j < m.hidden; ++j)
         {
-            float a = model::kB1[j];
+            float a = m.b1[j];
             for (int i = 0; i < kNumDesign; ++i)
-                a += z[i] * model::kW1[i * model::kHidden + j];
-            o += model::kW2[j] * std::tanh (a);
+                a += z[i] * m.w1[i * m.hidden + j];
+            o += m.w2[j] * std::tanh (a);
         }
         o = std::clamp (o, -30.0f, 30.0f);
         return 1.0f / (1.0f + std::exp (-o));
@@ -350,9 +386,10 @@ private:
         histPos = (histPos + 1) % H;
         histCount = std::min (histCount + 1, H);
         ++frames;
-        if (frames <= cfg.smooth)
+        if (! cfg.causal && frames <= cfg.smooth)
             return;
-        const Raw& mid = hist[(size_t) ((histPos - 1 - cfg.smooth + 2 * H) % H)];
+        // centred: the frame `smooth` hops back, smoothed over +-smooth; causal: the newest, smoothed over the past
+        const Raw& mid = hist[(size_t) ((histPos - 1 - (cfg.causal ? 0 : cfg.smooth) + 2 * H) % H)];
         DetFrame& o = result;
         o.center = mid.center;
         for (int i = 0; i < kNumFeat; ++i)
@@ -399,11 +436,12 @@ private:
                 sum += ctx[(size_t) k][(size_t) i];
             x[kNumBase + i] = sum / (float) ctxCount;
         }
-        o.p = probability (x);
+        o.p = probability (x, *net);
     }
 
     double fs = 48000.0, fd = 8000.0;
     DetectorConfig cfg;
+    const ModelRef* net = &kVelvet1Model;
     int hop = 96, win = 576, nfft = 1024, ringSize = 1024, dec = 6, yW = 96, yTmax = 115, yTmin = 16, dRingSize = 256;
     RealFft fft;
     std::vector<float> window, frameIn, spec, power, ring, dRing;

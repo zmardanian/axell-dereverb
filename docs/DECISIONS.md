@@ -265,3 +265,31 @@ The 1.0 weights leave 2.6 dB more room on that take at 85 % (D13).
   On the 10 real takes, 85 -> 100 % halves what is left of the bass decay (0.15 -> 0.13 s, from 0.29 recorded) and
   lowers the floor 6 dB more. The Dojo's Voice Profile now picks 95 % for a small room with a background less than
   35 dB under the voice.
+
+## D17 - 3.0: LIVE - no latency, for recording (`Source/Engine.h`, `research/train_dr.py` with AXDR_LA=0)
+- **Why.** STUDIO looks 32 ms ahead (latency 53 ms): fine for mixing, unusable for hearing yourself while recording,
+  so the Dojo's tracking chain had to leave De-Reverb out.
+- **A causal network.** The same network without look-ahead (input frames t-2 .. t), fine-tuned from 2.0's weights
+  (its input layer trimmed to the past and present frames) on 2.0's recipe: 15 % singing, 70 % dense rap-like
+  takes, lr 3e-4, 10 000 steps; step 8000 shipped (`Resources/dereverb_live.bin`).
+- **Zero latency: Axell Velvet 3.0's method.** Every hop the network's frame becomes a magnitude response
+  (|enhanced| / |input| per bin, clamped to -30 .. 0 dB) and that a minimum-phase filter (real cepstrum, 512 taps;
+  axell-core `MinPhase.h`, the method of Velvet's LIVE de-esser), which filters the current samples and fades into
+  the next one over the hop.
+- **Onset guard.** The filter comes from the last analysed frame, which at a word's start is mostly the room's tail:
+  the start of every word was cut (voice damage -10.0 dB vs STUDIO's -11.3). A room only decays, so a level 8 dB
+  above that frame's is direct sound: the filter steps aside (1 ms) and returns over 25 ms. Swept on the quick
+  benchmark: off -10.4 / +6 dB -11.8 / +8 dB -11.5 (room left -3.7 dB) / +10 dB -10.9.
+- **Result** (`docs/research/bench-3.0-live.txt`; 48 held-out examples, REDUCTION 85 %):
+
+  | | ViSQOL | ESTOI | SRMR | CD | damage | room left |
+  |---|---|---|---|---|---|---|
+  | input | 3.96 | 0.74 | 5.74 | 4.29 | -14.5 | 0.0 dB |
+  | STUDIO (53 ms) | 4.13 | 0.78 | 6.50 | 3.43 | -11.3 | -5.7 dB |
+  | **LIVE (0 ms)** | **4.00** | **0.74** | **6.26** | **3.84** | **-11.5** | **-3.7 dB** |
+
+  LIVE takes about two thirds of the room out with no delay and does the voice no more harm than STUDIO; STUDIO
+  remains the mixing mode. At 44.1 / 96 kHz LIVE adds only the resamplers' 2.6 / 1.8 ms.
+- **Switching** STUDIO <-> LIVE changes the latency: the axell-core latency handshake (Penta EQ 2.0.1) fades out,
+  reports the new latency to the host, switches once compensated and fades in.
+

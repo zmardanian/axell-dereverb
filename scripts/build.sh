@@ -10,6 +10,6 @@ JUCE_SRC=""
 for d in "$DIR/../axell-penta-eq/build/_deps/juce-src" "$DIR/../axell-duo-compressor/build/_deps/juce-src"; do
   [ -f "$d/CMakeLists.txt" ] && { JUCE_SRC="-DFETCHCONTENT_SOURCE_DIR_JUCE=$(realpath "$d")"; break; }
 done
-distrobox enter "$BOX" -- bash -lc "cd '$DIR' && cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=$CFG $JUCE_SRC && cmake --build build -j\$(nproc)"
+distrobox enter "$BOX" -- bash -lc "cd '$DIR' && cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=$CFG $JUCE_SRC && cmake --build build -j${JOBS:-6}"
 BUNDLE="build/AxellDeReverb_artefacts/$CFG/VST3/Axell De-Reverb.vst3"
 [ -d "$BUNDLE" ] && echo "Built: $DIR/$BUNDLE" || { echo "Bundle not found: $BUNDLE"; exit 1; }
