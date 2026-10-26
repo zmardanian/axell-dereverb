@@ -9,7 +9,7 @@
 - **Axell's Dojo look**: the family emblem, a brush-written title with De-Reverb's seal (静, "stillness") and
   De-Reverb's own deep-blue ground.
 - Verified: DSP 45 checks (STUDIO parity with the trained model -134 dB, LIVE: zero latency, exact at REDUCTION 0, no
-  allocation), plugin 27 (STUDIO <-> LIVE through the latency handshake), ASan + UBSan clean, independent audit 15/15,
+  allocation), plugin 27 (STUDIO <-> LIVE through the latency handshake), ASan + UBSan clean, independent audit 21/21 (with --quality: real voices, rooms, dry voices),
   pluginval strictness 10, Steinberg's VST3 validator 47/47.
 
 ## 2.0.0 - 2026-10-17

@@ -5,7 +5,26 @@ The de-reverb of the Axell suite. It removes the room from a close vocal:
 - **the early reflections and the 350-600 Hz box** of a wardrobe booth, a closet or a car, which most de-reverbs
   leave alone because they were built for long tails in big rooms.
 
+> **Part of Axell's Dojo** - the Axell Signature suite for rap vocals, beats and masters on Linux:
+> [Penta EQ](https://github.com/zmardanian/axell-penta-eq) · [Duo Compressor](https://github.com/zmardanian/axell-duo-compressor) ·
+> [Gate](https://github.com/zmardanian/axell-gate) · [De-Reverb](https://github.com/zmardanian/axell-dereverb) ·
+> [Velvet](https://github.com/zmardanian/axell-velvet) · [Master](https://github.com/zmardanian/axell-master), installed,
+> updated and tuned to your voice by the [Axell Signature Dojo](https://github.com/zmardanian/axell-signature-dojo).
+> Since 3.0 the plugins share one core library (`external/axell-core`): a breakthrough in one plugin becomes a
+> feature of the next.
+
 ![Axell De-Reverb](docs/screenshots/dereverb.png)
+
+## What's new in 3.0
+
+- **LIVE mode: zero latency, for recording.** STUDIO looks 32 ms ahead (53 ms latency) - for mixing. LIVE runs a
+  causal version of the network (fine-tuned from 2.0's) as a minimum-phase filter that changes every 10.7 ms (Axell
+  Velvet 3.0's method, now in the shared core), with an onset guard that keeps word starts intact (a room only decays,
+  so a sudden rise is the voice). On 48 held-out examples: 3.7 dB of room removed (STUDIO 5.7), ViSQOL 4.00 (input
+  3.96, STUDIO 4.13), no more damage to the voice than STUDIO - with no delay. The Axell Signature Dojo's tracking
+  chain uses it.
+- **Axell's Dojo look**: the family emblem, a brush-written title with De-Reverb's seal (静, "stillness"), a deep-blue
+  ground.
 
 More screens: [LISTEN: REMOVED](docs/screenshots/dereverb-listen.png), [REDUCTION 75 %](docs/screenshots/dereverb-75pct.png).
 
@@ -97,14 +116,16 @@ Before the singing was added, dry held notes lost 11.6 dB and belting 9.6 dB.
 | LISTEN | processed + removed = the input (-139 to -154 dB) |
 | Silence in | exactly silence out |
 | Host bypass | exactly the input, delayed by the reported latency |
+| LIVE: latency | 0 at 48 kHz; the resamplers' 2.6 ms at 44.1 kHz, 1.8 ms at 96 kHz |
+| LIVE vs STUDIO (48 held-out examples, 85 %) | room left -3.7 / -5.7 dB; ViSQOL 4.00 / 4.13; SRMR 6.26 / 6.50; voice damage -11.5 / -11.3 dB |
 | C++ = the trained model | -134 dB |
-| CPU (one core) | 3.3 % stereo at 48 kHz, 3.6 % at 44.1 kHz; a mono vocal is half |
+| CPU (one core) | STUDIO 3.5 % stereo at 48 kHz, 3.8 % at 44.1 kHz; LIVE 4.8 % at 48 kHz; a mono vocal is half |
 | Real-time safety | no allocation, lock or I/O in the audio path (allocation counter in the test suite) |
 
 All of these come from:
 - the research benchmarks in `research/` (`bench_dr.py`, `bench_sing.py`);
-- the automated suites in `tests/`: 27 DSP checks at four rates and 21 plugin checks;
-- an independent black-box audit through a VST3 host (`tests/independent/dr_audit.py`, 21 checks);
+- the automated suites in `tests/`: 45 DSP checks at four rates (STUDIO and LIVE) and 27 plugin checks;
+- an independent black-box audit through a VST3 host (`tests/independent/dr_audit.py --quality`, 21 checks);
 - AddressSanitizer + UBSan;
 - pluginval at strictness 10;
 - Steinberg's VST3 validator (47/47).
@@ -119,14 +140,27 @@ The reasoning behind every design choice is in [docs/DECISIONS.md](docs/DECISION
   singer. For a sung part, Gentle (60 %) is the safe choice.
 - Low room modes are only partly removed (in the bare room above, 80-150 Hz still rings after a phrase).
 
+## Engineering progress
+
+| Version | Date | Engineering | Measured (48 held-out examples, 85 %) |
+|---|---|---|---|
+| **1.0.0** | 2026-10-16 | A recurrent network (ERB gains + a complex deep filter below 4.5 kHz, 32 ms look-ahead) trained on 80 voices in 4,000 simulated small rooms (booths, closets, cars, bedrooms, bathrooms) + 7 measured rooms; 16 singers so held notes are not mistaken for a room; exact-latency resampling for any rate | ViSQOL 3.96 -> 4.11, room left -5.4 dB; WPE (the standard method) removes 0.2-1.8 dB; dry singing held notes: -11.6 dB before the singers were added, -2 dB after; the artist's blind A/B: preferred 4/4 |
+| **2.0.0** | 2026-10-17 | Rap and spoken word first: fine-tuned on dense takes (0-120 ms between phrases), 15 % singing, home rooms weighted | Regular speech: ViSQOL 4.13, CD 3.43, room left -5.7 dB (1.0: 4.11 / 3.45 / -5.4); dense takes better on every score; the artist's take: the room after each phrase -27.9 -> -37.8 dB |
+| **3.0.0** | 2026-10-26 | LIVE: a causal network (fine-tuned from 2.0) as a zero-latency minimum-phase filter per hop with an onset guard (Axell Velvet 3.0's method via the shared core); STUDIO / LIVE through the latency handshake; Axell's Dojo look | LIVE at 0 ms: room left -3.7 dB, ViSQOL 4.00, voice damage -11.5 dB (STUDIO -11.3); STUDIO unchanged (C++ = trained model to -134 dB); 45 DSP + 27 plugin checks, ASan clean, audit 21/21, pluginval L10, validator 47/47 |
+
+Every design decision with its measurement: [docs/DECISIONS.md](docs/DECISIONS.md); all changes: [CHANGELOG.md](CHANGELOG.md).
+
 ## Install (Linux)
 
-Download `AxellDeReverb-2.0.0-linux-x86_64.tar.gz` from the
-[release page](https://github.com/zmardanian/axell-dereverb/releases/tag/v2.0.0), then:
+Download `AxellDeReverb-3.0.0-linux-x86_64.tar.gz` from the
+[latest release](https://github.com/zmardanian/axell-dereverb/releases/latest) (optional: `sha256sum -c SHA256SUMS.txt`),
+then:
 
-    tar xzf AxellDeReverb-2.0.0-linux-x86_64.tar.gz
-    cd AxellDeReverb-2.0.0-linux-x86_64
+    tar xzf AxellDeReverb-3.0.0-linux-x86_64.tar.gz
+    cd AxellDeReverb-3.0.0-linux-x86_64
     ./install.sh
+
+Or let the [Axell Signature Dojo](https://github.com/zmardanian/axell-signature-dojo) install and update it.
 
 Then in REAPER: Options > Preferences > Plug-ins > VST > Re-scan.
 
