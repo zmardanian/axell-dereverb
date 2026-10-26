@@ -14,7 +14,7 @@ if [ -d "$PUB/.git" ]; then UPDATE=1; PUB="$(mktemp -d)/stage"
 elif [ -e "$PUB" ]; then echo "$PUB exists but is not a git repository - remove it first."; exit 1; fi
 mkdir -p "$PUB/tests/independent" "$PUB/docs" "$PUB/external/axell-core"
 for f in CMakeLists.txt LICENSE README.md CHANGELOG.md THIRD_PARTY_NOTICES.md; do cp "$f" "$PUB/"; done
-cp -r Source scripts Resources "$PUB/"
+cp -r Source scripts Resources .github "$PUB/"   # .github: the CI workflow (GitHub Actions)
 mkdir -p "$PUB/tools" "$PUB/research"
 cp tools/*.cpp tools/*.h "$PUB/tools/"
 cp research/*.py "$PUB/research/"

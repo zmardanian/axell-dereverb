@@ -1,0 +1,41 @@
+# Builds Axell De-Reverb on a clean Ubuntu 24.04 and runs its test suites and pluginval on every push.
+# Least privilege: read-only token, no secrets, actions pinned to exact commits.
+name: CI
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build-and-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: System packages (the same list as scripts/setup-toolbox.sh)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build git pkg-config curl unzip xvfb \
+            libasound2-dev libfreetype-dev libfontconfig1-dev libx11-dev libxcomposite-dev \
+            libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev libxrender-dev libgl1-mesa-dev
+      - name: Configure
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build --target AxellDeReverb_VST3 DrDspTests DrPluginTests -j4
+      - name: DSP suite (48 kHz)
+        run: ./build/DrDspTests --quick
+      - name: Plugin suite
+        run: xvfb-run -a ./build/DrPluginTests_artefacts/Release/DrPluginTests
+      - name: pluginval (strictness 10)
+        run: |
+          curl -fsSL -o pluginval.zip https://github.com/Tracktion/pluginval/releases/download/v1.0.4/pluginval_Linux.zip
+          echo "$(cat .github/pluginval.sha256)  pluginval.zip" | sha256sum -c
+          unzip -o pluginval.zip
+          xvfb-run -a ./pluginval --strictness-level 10 --validate-in-process \
+            --validate "build/AxellDeReverb_artefacts/Release/VST3/Axell De-Reverb.vst3"
