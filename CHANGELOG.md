@@ -1,5 +1,16 @@
 # Changelog
 
+## 4.0.0 - 2026-10-27
+- **TRUE TONE (new):** in small rooms the room removal took a little more low end than the room had added - against
+  the voice's direct sound the output was ~3.7 dB thin at 63 Hz and 1-1.5 dB bright above 400 Hz. TRUE TONE watches
+  how much De-Reverb removes in each band (its own output vs its input, ~10 s average) and corrects the processed
+  signal with a learned model (at most +-3 dB, per REDUCTION amount, no latency, STUDIO and LIVE). Rooms never used
+  for training, the real plugin: tone error in artist-like rooms 1.76 -> 1.09 dB at 100 % and 1.23 -> 1.00 dB at
+  85 %; in synthetic small rooms 1.92 -> 1.64 / 1.74 -> 1.58 dB (12-17 % of single rooms slightly worse, typically
+  under 0.3 dB). On for new instances and every preset; projects saved before 4.0 load with it off and render
+  byte-identically. research/truetone_fit.py renders, fits and writes Source/TrueToneModel.h.
+- **Version in the header**, small and quiet after the title.
+
 ## 3.0.0 - 2026-10-26
 - **LIVE mode (new): zero latency, for recording.** A STUDIO / LIVE switch. LIVE runs a causal version of the
   network (fine-tuned from 2.0's) as a minimum-phase filter that changes every 10.7 ms (Axell Velvet 3.0's method),

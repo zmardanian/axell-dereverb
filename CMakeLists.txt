@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
-project(AxellDeReverb VERSION 3.0.0)
+project(AxellDeReverb VERSION 4.0.0)
+# the version for the GUI (every target: the plugin, tests and tools draw the same header)
+add_compile_definitions(AXELL_VERSION_STRING="${PROJECT_VERSION}")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

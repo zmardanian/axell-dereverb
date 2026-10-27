@@ -75,6 +75,7 @@ private:
     std::atomic<float>* pListen = nullptr;
     std::atomic<float>* pOutput = nullptr;
     std::atomic<float>* pMode = nullptr;
+    std::atomic<float>* pTrueTone = nullptr;
     float outGain = 1.0f;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DeReverbProcessor)

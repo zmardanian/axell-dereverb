@@ -17,6 +17,9 @@ const char* mode = "STUDIO: the full network with 32 ms of look-ahead (53 ms lat
                    "mixing. LIVE: a causal network applied as a zero-latency filter - for recording, so you hear "
                    "yourself without the room and without delay. LIVE removes a little less of the room.";
 const char* listen = "Hear only what is being removed. If you can hear words in it clearly, lower REDUCTION.";
+const char* trueTone = "Gives back the low end the room removal takes beyond the room's share, and the slight extra brightness: "
+                       "De-Reverb watches what it removes per band and corrects the tone (+-3 dB at most). In rooms like "
+                       "yours it halves the tone error against the real voice.";
 const char* output = "Output level.";
 const char* history = "The last seconds: input (grey), output (white) and the room being removed (teal band, dB re the input).";
 const char* removed = "The level of what is being removed (reflections, box, tail), re the input level, smoothed over half a second: -6 dB is a lot of room, -30 dB almost none.";
@@ -77,13 +80,14 @@ DeReverbEditor::DeReverbEditor (DeReverbProcessor& p) : AudioProcessorEditor (&p
     addAndMakeVisible (content);
     reduction.bind (proc.apvts, "reduction", tip::reduction);
     listen.bind (proc.apvts, "listen", tip::listen);
+    trueTone.bind (proc.apvts, "trueTone", tip::trueTone);
     if (auto* mp = proc.apvts.getParameter ("mode"))
         mode.bind (*mp, tip::mode);
     output.bind (proc.apvts, "output", tip::output);
     history.setTooltip (tip::history);
     removedTip.setTooltip (tip::removed);
     for (auto* c : std::initializer_list<juce::Component*> { &presetPrev, &presetNext, &presetName, &slotA, &slotB, &slotCopy,
-                                                            &reduction, &listen, &mode, &output, &inMeter, &outMeter, &history, &removedTip })
+                                                            &reduction, &listen, &trueTone, &mode, &output, &inMeter, &outMeter, &history, &removedTip })
         content.addAndMakeVisible (c);
     for (auto* b : { &slotA, &slotB })
         b->setColour (juce::TextButton::buttonOnColourId, col::global);
@@ -160,7 +164,12 @@ void DeReverbEditor::layout()
     removedArea = mid.removeFromTop (110).reduced (0, 6);
     removedTip.setBounds (removedArea);
     mid.removeFromTop (12);
-    listen.setBounds (mid.removeFromTop (40).withSizeKeepingCentre (260, 36));
+    {
+        auto row = mid.removeFromTop (40).withSizeKeepingCentre (260, 36);
+        listen.setBounds (row.removeFromLeft (152));
+        row.removeFromLeft (8);
+        trueTone.setBounds (row);
+    }
     mid.removeFromTop (6);
     mode.setBounds (mid.removeFromTop (32).withSizeKeepingCentre (260, 30));
 }
@@ -175,7 +184,9 @@ void DeReverbEditor::Content::paint (juce::Graphics& g)
     axell::brand::drawHeaderRule (g, (float) e.headerArea.getBottom() - 1.0f, 0.0f, (float) gui::kWidth, col::grid);
     // Axell's Dojo: the family emblem, its wave and dot in this plugin's colour
     axell::brand::drawEmblem (g, { 12.0f, 6.0f, 46.0f, 46.0f }, juce::Colour (0xff4fb3d9));
-    axell::brand::drawTitle (g, 68.0f, 28.0f, "De-Reverb", juce::String (juce::CharPointer_UTF8 ("\xe9\x9d\x99"))); // 静
+    axell::brand::drawVersion (g, axell::brand::drawTitle (g, 68.0f, 28.0f, "De-Reverb",
+                                                               juce::String (juce::CharPointer_UTF8 ("\xe9\x9d\x99"))), // 静
+                               28.0f, AXELL_VERSION_STRING);
     g.setFont (ui::caps (10.0f, 1));
     g.setColour (col::dim);
     g.drawText ("ROOM REMOVAL FOR VOCALS", 67, 37, 320, 14, Justification::centredLeft);

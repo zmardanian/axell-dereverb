@@ -251,6 +251,53 @@ int main()
             check ("master limiter VOICE HOLD: a burst inside the pause stays under the ceiling (sample peak)" + r,
                    20 * std::log10 (tp), -60, -1.0, "dBFS");
         }
+        // ESS HOLD (flag 2): a loud tone (the word, limited ~9 dB), a quiet one flagged as an ess (held at the word's
+        // gain instead of releasing), then the next loud tone: within 30 ms of the ess the gain is back on the 3.0 path.
+        // All-zero flags: bit-identical to no flags.
+        {
+            auto runEss = [&] (int mode, std::vector<float>& x, std::vector<float>& gr)   // 0 no flags, 1 zeros, 2 ess
+            {
+                MasterLimiter eh;
+                eh.prepare (fs, (int) (0.005 * fs));
+                eh.setLookahead ((int) (0.002 * fs));
+                eh.reset();
+                eh.setParams (-1.0f, 120.0f, MasterLimiter::Style::transparent, 1.0f);
+                const size_t n1 = (size_t) (0.5 * fs), n2 = (size_t) (0.1 * fs), n3 = (size_t) (0.3 * fs);
+                x.assign (n1 + n2 + n3, 0.0f);
+                std::vector<uint8_t> fl (x.size(), 0);
+                for (size_t i = 0; i < x.size(); ++i)
+                {
+                    const double amp = i < n1 ? 2.5 : (i < n1 + n2 ? 0.3 : 2.0);
+                    x[i] = (float) (amp * std::sin (2 * 3.141592653589793 * 997.0 * i / fs));
+                    fl[i] = (mode == 2 && i >= n1 && i < n1 + n2) ? 2 : 0;
+                }
+                gr.assign (x.size() / 64 + 1, 0.0f);
+                for (size_t pos = 0; pos < x.size(); pos += 64)
+                {
+                    float* b[1] = { x.data() + pos };
+                    const int m = (int) std::min<size_t> (64, x.size() - pos);
+                    eh.process (b, 1, m, mode == 0 ? nullptr : fl.data() + pos);
+                    gr[pos / 64] = eh.gainReductionDb (0);
+                }
+            };
+            std::vector<float> x0, x1, x2, g0, g1, g2;
+            runEss (0, x0, g0);
+            runEss (1, x1, g1);
+            runEss (2, x2, g2);
+            double d01 = 0.0, tp = 0.0;
+            for (size_t i = 0; i < x0.size(); ++i)
+            {
+                d01 = std::max (d01, (double) std::abs (x1[i] - x0[i]));
+                tp = std::max (tp, (double) std::abs (x2[i]));
+            }
+            const size_t essEnd = (size_t) (0.6 * fs) / 64, late = (size_t) (0.63 * fs) / 64;
+            check ("master limiter ESS HOLD: all-zero flags = no flags (max |difference|)" + r, d01, 0, 0, "");
+            check ("master limiter ESS HOLD: GR at the end of the ess, held (word ~8.9 dB)" + r, g2[essEnd - 1], 6.0, 9.5, "dB");
+            check ("master limiter ESS HOLD: held GR above the released one at the end of the ess" + r, g2[essEnd - 1] - g0[essEnd - 1], 2.0, 9.5, "dB");
+            check ("master limiter ESS HOLD: 30 ms after the ess, back on the 3.0 path (|GR difference|)" + r,
+                   std::abs (g2[late] - g0[late]), 0.0, 0.1, "dB");
+            check ("master limiter ESS HOLD: sample peak under the ceiling" + r, 20 * std::log10 (tp), -60, -1.0, "dBFS");
+        }
         check ("master limiter latency = 64 + lookahead" + r, Lat, 64 + (int) (0.002 * fs), 64 + (int) (0.002 * fs), "samples");
         // program dependence: after 2 s of sustained limiting the release is slower than after one short peak
         auto recover = [&] (double holdSecs)

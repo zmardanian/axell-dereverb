@@ -2,6 +2,7 @@
 // usage: DrDspTests [--quick]   (run from the repository root: reads Resources/dereverb.bin and tests/reference)
 #include "DeReverb.h"
 
+#include <array>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -57,10 +58,11 @@ static double db (double e, double r) { return 10.0 * std::log10 ((e + 1e-30) / 
 // removed
 static std::vector<std::vector<float>> render (const Weights& W, int fs, std::vector<std::vector<float>> x, float amount,
                                                bool listen, std::mt19937* rng = nullptr, int maxBlock = 2048, bool count = false,
-                                               bool ramp = false)
+                                               bool ramp = false, bool trueTone = false, std::array<float, 23>* curve = nullptr)
 {
     DeReverb d;
     d.prepare (W, fs, (int) x.size(), maxBlock);
+    d.setTrueTone (trueTone);
     d.setAmount (ramp ? 1.0f : amount);
     d.setListen (ramp ? false : listen);
     d.reset();
@@ -87,6 +89,9 @@ static std::vector<std::vector<float>> render (const Weights& W, int fs, std::ve
     }
     for (auto& c : x)
         c.erase (c.begin(), c.begin() + L);
+    if (curve != nullptr)
+        for (int b = 0; b < 23; ++b)
+            (*curve)[(size_t) b] = d.trueToneDb (b);
     return x;
 }
 
@@ -302,6 +307,82 @@ int main (int argc, char** argv)
                 const double sec = std::chrono::duration<double> (std::chrono::steady_clock::now() - a).count();
                 check ("LIVE: CPU, stereo @ 48000 Hz (% of one core)", 100.0 * sec / 10.0, 0, 30, "%");
             }
+        }
+    }
+    // 8. 4.0 TRUE TONE (Studio and LIVE): safe, bounded, block-size invariant, the mix identities still hold
+    {
+        Weights WL2;
+        auto wl = readFile ("Resources/dereverb_live.bin");
+        WL2.load (wl.data(), wl.size());
+        // a voice in a small room: 110-220 Hz glides with 20 harmonics, syllables, convolved with a 0.35 s decay
+        const int fs = 48000;
+        const size_t n = (size_t) fs * 8;
+        std::vector<float> v (n, 0.0f), x (n, 0.0f);
+        double ph = 0.0;
+        for (size_t i = 0; i < n; ++i)
+        {
+            const double t = (double) i / fs, f0 = 110.0 + 55.0 * (1.0 + std::sin (2 * M_PI * 0.3 * t));
+            ph += 2 * M_PI * f0 / fs;
+            double s = 0.0;
+            for (int k = 1; k <= 20; ++k)
+                s += std::sin (k * ph) / k;
+            const double env = std::max (0.0, std::sin (2 * M_PI * 2.5 * t));
+            v[i] = (float) (0.1 * s * env);
+        }
+        std::vector<float> h ((size_t) (0.35 * fs));
+        for (size_t i = 0; i < h.size(); ++i)
+            h[i] = (i == 0 ? 1.0f : 0.25f * nd (rng)) * (float) std::exp (-6.9 * (double) i / (0.35 * fs));
+        for (size_t i = 0; i < n; ++i)
+            for (size_t j = 0; j < h.size() && j <= i; j += 7)   // a sparse room (every 7th tap): enough reverb, quick
+                x[i] += v[i - j] * h[j] * (j == 0 ? 1.0f : 2.6f);
+        for (int live = 0; live < 2; ++live)
+        {
+            const Weights& WW = live ? WL2 : W;
+            const std::string M = live ? " (LIVE)" : " (Studio)";
+            std::array<float, 23> curve {};
+            auto a = render (WW, fs, { x, x }, 1.0f, false, nullptr, 2048, false, false, true, &curve);
+            auto b = render (WW, fs, { x, x }, 1.0f, false, &rng, 2048, false, false, true);
+            double d = 0.0, mx = 0.0, cmax = 0.0;
+            for (size_t i = 0; i < n; ++i)
+            {
+                d = std::max (d, (double) std::abs (a[0][i] - b[0][i]));
+                mx = std::max (mx, (double) std::abs (a[0][i]));
+            }
+            for (float c : curve)
+                cmax = std::max (cmax, (double) std::abs (c));
+            check ("TRUE TONE: blocks of 512 vs random 1-2048 (max difference)" + M, d, 0.0, 1.0e-6, "");
+            check ("TRUE TONE: the correction stays within +-3 dB (largest band, after 8 s)" + M, cmax, 0.0, 3.0001, "dB");
+            double xm = 0.0;
+            for (float s0 : x)
+                xm = std::max (xm, (double) std::abs (s0));
+            check ("TRUE TONE: output peak re the input's on a voice in a room" + M, mx / xm, 0.0, 1.5, "x");
+            std::vector<float> z (n / 4, 0.0f);
+            auto zo = render (WW, fs, { z, z }, 1.0f, false, nullptr, 2048, false, false, true);
+            double zm = 0.0;
+            for (float s : zo[0])
+                zm = std::max (zm, (double) std::abs (s));
+            check ("TRUE TONE: silence in -> silence out (max |y|)" + M, zm, 0.0, 0.0, "");
+            auto r0 = render (WW, fs, { x }, 0.0f, false, nullptr, 2048, false, false, true)[0];
+            double e = 0.0, r = 0.0;
+            for (size_t i = (size_t) fs / 2; i < n - (size_t) fs / 4; ++i)
+            {
+                e += (double) (r0[i] - x[i]) * (r0[i] - x[i]);
+                r += (double) x[i] * x[i];
+            }
+            check ("TRUE TONE: REDUCTION 0 is still the input (error re the input)" + M, db (e, r), -400, -120, "dB");
+            auto o = render (WW, fs, { x }, 0.85f, false, nullptr, 2048, false, true, true)[0];
+            auto l = render (WW, fs, { x }, 0.85f, true, nullptr, 2048, false, true, true)[0];
+            e = r = 0.0;
+            for (size_t i = (size_t) fs / 2; i < n - (size_t) fs / 4; ++i)
+            {
+                const double s2 = (double) o[i] + l[i] - x[i];
+                e += s2 * s2;
+                r += (double) x[i] * x[i];
+            }
+            check ("TRUE TONE: LISTEN - processed + removed = the input (error re the input)" + M, db (e, r), -400, -110, "dB");
+            allocCount = 0;
+            render (WW, 44100, { x, x }, 0.7f, false, &rng, 2048, true, false, true);
+            check ("TRUE TONE: no memory allocation in process() (44.1 kHz, random blocks)" + M, (double) allocCount, 0, 0, "allocs");
         }
     }
     // 7. CPU: 48 kHz stereo and 44.1 kHz stereo, % of one core

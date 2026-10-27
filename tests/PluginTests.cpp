@@ -75,13 +75,13 @@ int main()
     //== 1. parameters: frozen IDs and order, defaults; the embedded weights load
     {
         DeReverbProcessor p;
-        const juce::StringArray frozen { "reduction", "listen", "output", "mode" };   // "mode": 3.0 (version hint 2)
+        const juce::StringArray frozen { "reduction", "listen", "output", "mode", "trueTone" };   // "mode": 3.0 (hint 2), "trueTone": 4.0 (hint 4)
         auto& params = p.getParameters();
-        check (params.size() == frozen.size(), "parameter count = 4");
+        check (params.size() == frozen.size(), "parameter count = 5");
         for (int i = 0; i < params.size() && i < frozen.size(); ++i)
         {
             auto* wp = dynamic_cast<juce::AudioProcessorParameterWithID*> (params[i]);
-            check (wp != nullptr && wp->getParameterID() == frozen[i] && wp->getVersionHint() == (i < 3 ? 1 : 2),
+            check (wp != nullptr && wp->getParameterID() == frozen[i] && wp->getVersionHint() == (i < 3 ? 1 : (i == 3 ? 2 : 4)),
                    "parameter " + juce::String (i) + " is '" + frozen[i] + "'");
         }
         check (getParam (p, "mode") < 0.5f, "default mode: STUDIO (projects from before 3.0 load as they were)");
@@ -102,6 +102,59 @@ int main()
         b.setStateInformation (mb.getData(), (int) mb.getSize());
         check (std::abs (getParam (b, "reduction") - 63.0f) < 1e-3f && getParam (b, "listen") > 0.5f && std::abs (getParam (b, "output") + 2.5f) < 1e-3f,
                "state restore: all parameters identical");
+    }
+
+    //== 2b. 4.0 TRUE TONE: on for new instances, off for projects saved before 4.0, kept as saved since
+    {
+        DeReverbProcessor fresh;
+        check (getParam (fresh, "trueTone") > 0.5f, "4.0: a new instance has TRUE TONE on");
+        {
+            DeReverbProcessor q;
+            setParam (q, "trueTone", 0.0f);
+            bool on = true;
+            for (int i = 0; i < q.getNumPrograms(); ++i)
+            {
+                setParam (q, "trueTone", 0.0f);
+                q.setCurrentProgram (i);
+                on = on && getParam (q, "trueTone") > 0.5f;
+            }
+            check (on, "4.0: every factory preset turns TRUE TONE on");
+        }
+        auto stateWith = [] (int how) {   // 0: no trueTone (a 3.x project), 1: trueTone without a value
+            DeReverbProcessor a;
+            setParam (a, "reduction", 100.0f);
+            auto tree = a.apvts.copyState();
+            for (int i = tree.getNumChildren(); --i >= 0;)
+                if (tree.getChild (i).getProperty ("id").toString() == "trueTone")
+                {
+                    if (how == 0)
+                        tree.removeChild (i, nullptr);
+                    else
+                        tree.getChild (i).removeProperty ("value", nullptr);
+                }
+            juce::MemoryBlock mb;
+            juce::AudioProcessor::copyXmlToBinary (*tree.createXml(), mb);
+            return mb;
+        };
+        for (int how : { 0, 1 })
+        {
+            const auto mb = stateWith (how);
+            DeReverbProcessor b;
+            b.setStateInformation (mb.getData(), (int) mb.getSize());
+            check (getParam (b, "trueTone") < 0.5f && std::abs (getParam (b, "reduction") - 100.0f) < 1e-3f,
+                   how == 0 ? "4.0: a 3.x project (no TRUE TONE in it) loads with it off, the rest as saved"
+                            : "4.0: a state with a value-less TRUE TONE entry loads with it off");
+        }
+        for (const float v : { 0.0f, 1.0f })
+        {
+            DeReverbProcessor a;
+            setParam (a, "trueTone", v);
+            juce::MemoryBlock mb;
+            a.getStateInformation (mb);
+            DeReverbProcessor b;
+            b.setStateInformation (mb.getData(), (int) mb.getSize());
+            check ((getParam (b, "trueTone") > 0.5f) == (v > 0.5f), juce::String ("4.0: a 4.0 project keeps TRUE TONE ") + (v > 0.5f ? "on" : "off"));
+        }
     }
 
     //== 3. presets and A/B

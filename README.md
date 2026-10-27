@@ -17,6 +17,14 @@ The de-reverb of the Axell suite. It removes the room from a close vocal:
 
 ![Axell De-Reverb](docs/screenshots/dereverb.png)
 
+## What's new in 4.0
+
+- **TRUE TONE**: De-Reverb gives back the low end it used to take beyond the room's share, and the slight extra
+  brightness. It watches what it removes in each band and corrects the tone (at most +-3 dB, no latency). In rooms
+  like the artist's, the tone error against the real voice drops **38 %** (1.76 -> 1.09 dB at 100 %). On for new
+  instances and presets; projects from 3.x sound exactly as before (DECISIONS D18).
+- **Version in the header**, small and quiet after the title.
+
 ## What's new in 3.0
 
 - **LIVE mode: zero latency, for recording.** STUDIO looks 32 ms ahead (53 ms latency) - for mixing. LIVE runs a
@@ -149,17 +157,18 @@ The reasoning behind every design choice is in [docs/DECISIONS.md](docs/DECISION
 | **1.0.0** | 2026-10-16 | A recurrent network (ERB gains + a complex deep filter below 4.5 kHz, 32 ms look-ahead) trained on 80 voices in 4,000 simulated small rooms (booths, closets, cars, bedrooms, bathrooms) + 7 measured rooms; 16 singers so held notes are not mistaken for a room; exact-latency resampling for any rate | ViSQOL 3.96 -> 4.11, room left -5.4 dB; WPE (the standard method) removes 0.2-1.8 dB; dry singing held notes: -11.6 dB before the singers were added, -2 dB after; the artist's blind A/B: preferred 4/4 |
 | **2.0.0** | 2026-10-17 | Rap and spoken word first: fine-tuned on dense takes (0-120 ms between phrases), 15 % singing, home rooms weighted | Regular speech: ViSQOL 4.13, CD 3.43, room left -5.7 dB (1.0: 4.11 / 3.45 / -5.4); dense takes better on every score; the artist's take: the room after each phrase -27.9 -> -37.8 dB |
 | **3.0.0** | 2026-10-26 | LIVE: a causal network (fine-tuned from 2.0) as a zero-latency minimum-phase filter per hop with an onset guard (Axell Velvet 3.0's method via the shared core); STUDIO / LIVE through the latency handshake; Axell's Dojo look | LIVE at 0 ms: room left -3.7 dB, ViSQOL 4.00, voice damage -11.5 dB (STUDIO -11.3); STUDIO unchanged (C++ = trained model to -134 dB); 45 DSP + 27 plugin checks, ASan clean, audit 21/21, pluginval L10, validator 47/47 |
+| **4.0.0** | 2026-10-27 | TRUE TONE: the plugin's own per-band removal -> a learned tone correction (per REDUCTION amount, +-3 dB, Studio and LIVE, no latency), trained on 1680 held-out-voice examples; version in the header | Unseen artist-like rooms: tone error 1.76 -> 1.09 dB (100 %), 1.23 -> 1.00 dB (85 %); synthetic rooms 1.92 -> 1.64 dB; 3.x projects render byte-identically; 59 DSP + 34 plugin checks, ASan clean, audit 21/21, pluginval L10, validator 47/47 |
 
 Every design decision with its measurement: [docs/DECISIONS.md](docs/DECISIONS.md); all changes: [CHANGELOG.md](CHANGELOG.md).
 
 ## Install (Linux)
 
-Download `AxellDeReverb-3.0.0-linux-x86_64.tar.gz` from the
+Download `AxellDeReverb-4.0.0-linux-x86_64.tar.gz` from the
 [latest release](https://github.com/zmardanian/axell-dereverb/releases/latest) (optional: `sha256sum -c SHA256SUMS.txt`),
 then:
 
-    tar xzf AxellDeReverb-3.0.0-linux-x86_64.tar.gz
-    cd AxellDeReverb-3.0.0-linux-x86_64
+    tar xzf AxellDeReverb-4.0.0-linux-x86_64.tar.gz
+    cd AxellDeReverb-4.0.0-linux-x86_64
     ./install.sh
 
 Or let the [Axell Signature Dojo](https://github.com/zmardanian/axell-signature-dojo) install and update it.

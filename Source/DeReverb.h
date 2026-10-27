@@ -88,6 +88,8 @@ public:
     }
 
     void setAmount (float a) noexcept { engine.setAmount (a); }
+    void setTrueTone (bool on) noexcept { engine.setTrueTone (on); }
+    float trueToneDb (int band) const noexcept { return engine.trueToneDb (band); }
     void setListen (bool on) noexcept
     {
         engine.setListen (on);

@@ -30,16 +30,37 @@ PASS  LIVE: processed + removed (LISTEN) = the input (error re the input) @ 96.0
 PASS  LIVE: output finite and bounded (max |y|) @ 96.0 kHz                                                       0.3857   [0 .. 1]
 PASS  LIVE: silence in -> silence out (max |y|) @ 96.0 kHz                                                       0.0000   [0 .. 0]
 PASS  LIVE: no memory allocation in process() (44.1 / 48 kHz, random blocks)                                     0.0000 allocs  [0 .. 0]
-ALL PASS: 32 of 32 checks passed (62.3 s)
-PASS  parameter count = 4
+PASS  TRUE TONE: blocks of 512 vs random 1-2048 (max difference) (Studio)                                        0.0000   [0 .. 1e-06]
+PASS  TRUE TONE: the correction stays within +-3 dB (largest band, after 8 s) (Studio)                           3.0000 dB  [0 .. 3.0001]
+PASS  TRUE TONE: output peak re the input's on a voice in a room (Studio)                                        0.7600 x  [0 .. 1.5]
+PASS  TRUE TONE: silence in -> silence out (max |y|) (Studio)                                                    0.0000   [0 .. 0]
+PASS  TRUE TONE: REDUCTION 0 is still the input (error re the input) (Studio)                                 -348.5416 dB  [-400 .. -120]
+PASS  TRUE TONE: LISTEN - processed + removed = the input (error re the input) (Studio)                       -155.0458 dB  [-400 .. -110]
+PASS  TRUE TONE: no memory allocation in process() (44.1 kHz, random blocks) (Studio)                            0.0000 allocs  [0 .. 0]
+PASS  TRUE TONE: blocks of 512 vs random 1-2048 (max difference) (LIVE)                                          0.0000   [0 .. 1e-06]
+PASS  TRUE TONE: the correction stays within +-3 dB (largest band, after 8 s) (LIVE)                             1.6354 dB  [0 .. 3.0001]
+PASS  TRUE TONE: output peak re the input's on a voice in a room (LIVE)                                          0.8518 x  [0 .. 1.5]
+PASS  TRUE TONE: silence in -> silence out (max |y|) (LIVE)                                                      0.0000   [0 .. 0]
+PASS  TRUE TONE: REDUCTION 0 is still the input (error re the input) (LIVE)                                   -348.5416 dB  [-400 .. -120]
+PASS  TRUE TONE: LISTEN - processed + removed = the input (error re the input) (LIVE)                         -154.4737 dB  [-400 .. -110]
+PASS  TRUE TONE: no memory allocation in process() (44.1 kHz, random blocks) (LIVE)                              0.0000 allocs  [0 .. 0]
+ALL PASS: 46 of 46 checks passed (137.5 s)
+PASS  parameter count = 5
 PASS  parameter 0 is 'reduction'
 PASS  parameter 1 is 'listen'
 PASS  parameter 2 is 'output'
 PASS  parameter 3 is 'mode'
+PASS  parameter 4 is 'trueTone'
 PASS  default mode: STUDIO (projects from before 3.0 load as they were)
 PASS  defaults: REDUCTION 85 %, LISTEN off, OUTPUT 0 dB (= the Natural preset)
 PASS  the embedded network weights load and verify
 PASS  state restore: all parameters identical
+PASS  4.0: a new instance has TRUE TONE on
+PASS  4.0: every factory preset turns TRUE TONE on
+PASS  4.0: a 3.x project (no TRUE TONE in it) loads with it off, the rest as saved
+PASS  4.0: a state with a value-less TRUE TONE entry loads with it off
+PASS  4.0: a 4.0 project keeps TRUE TONE off
+PASS  4.0: a 4.0 project keeps TRUE TONE on
 PASS  every factory preset applies (3)
 PASS  A/B: each slot keeps its own settings
 PASS  LIVE @ 44.1 kHz: latency 116 samples; REDUCTION 0 = the input (-209.2 dB)
@@ -58,4 +79,4 @@ PASS  mono layout accepted
 PASS  mono: processes; then a rate change and blocks larger than announced: finite
 PASS  editor: opens/closes 5x while processing (100 % size)
 PASS  editor: resizable 75-200 %
-ALL PASS: 27 of 27 plugin checks passed
+ALL PASS: 34 of 34 plugin checks passed

@@ -12,7 +12,9 @@ int main (int argc, char** argv)
 {
     if (argc < 4)
     {
-        std::fprintf (stderr, "usage: DRRender weights.bin in.wav out.wav [--raw]\n");
+        std::fprintf (stderr, "usage: DRRender weights.bin in.wav out.wav [--raw] [--truetone] [--amount=0..1]\n"
+                              "  --truetone prints the final TRUE TONE curve and its measured G (23 bands, dB) to stdout;\n"
+                              "  --measure does the same without applying the correction\n");
         return 2;
     }
     std::ifstream wf (argv[1], std::ios::binary);
@@ -23,7 +25,17 @@ int main (int argc, char** argv)
         std::fprintf (stderr, "bad weights\n");
         return 1;
     }
-    const bool raw = argc > 4 && std::string (argv[4]) == "--raw";
+    bool raw = false, tt = false, measure = false;
+    float amount = 1.0f;
+    for (int i = 4; i < argc; ++i)
+    {
+        const std::string o = argv[i];
+        raw = raw || o == "--raw";
+        tt = tt || o == "--truetone" || o == "--measure";
+        measure = measure || o == "--measure";
+        if (o.rfind ("--amount=", 0) == 0)
+            amount = std::stof (o.substr (9));
+    }
     wav::Audio a;
     if (raw)
     {
@@ -37,6 +49,10 @@ int main (int argc, char** argv)
         return 1;
     axdr::Engine e;
     e.prepare (W, (int) a.ch.size());
+    e.setTrueTone (tt);
+    e.setTrueToneMeasureOnly (measure);
+    e.setAmount (amount);
+    e.reset();
     const int L = e.latency();          // 0 for LIVE weights
     const size_t n = a.frames();
     for (auto& c : a.ch)
@@ -51,6 +67,13 @@ int main (int argc, char** argv)
     }
     for (auto& c : a.ch)
         c.erase (c.begin(), c.begin() + L);
+    if (tt)
+    {
+        for (int b = 0; b < 23; ++b)
+            std::printf ("%.4f%s", e.trueToneDb (b), b < 22 ? " " : "\n");
+        for (int b = 0; b < 23; ++b)
+            std::printf ("%.4f%s", e.trueToneMeasuredDb (b), b < 22 ? " " : "\n");
+    }
     if (raw)
     {
         std::ofstream f (argv[3], std::ios::binary);

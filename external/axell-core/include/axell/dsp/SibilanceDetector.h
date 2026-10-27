@@ -153,6 +153,7 @@ public:
         while (dRingSize < yW + yTmax + 8)
             dRingSize <<= 1;
         dRing.assign ((size_t) dRingSize, 0.0f);
+        yLin.assign ((size_t) (yW + yTmax), 0.0f);
         dfun.assign ((size_t) yTmax + 1, 0.0);
         dnorm.assign ((size_t) yTmax + 1, 1.0);
 
@@ -255,25 +256,53 @@ private:
         const int64_t j0 = c - yW / 2, j1 = j0 + yW;
         if (j0 - yTmax < 0 || j1 > nd)
             return;
+        // the window and its lags as one straight run (values unchanged): lin[i] = x[j0 - yTmax + i]
         const int mask = dRingSize - 1;
-        auto at = [&] (int64_t j) { return dRing[(size_t) (j & mask)]; };
+        const int nLin = yW + yTmax;
+        for (int i = 0; i < nLin; ++i)
+            yLin[(size_t) i] = dRing[(size_t) ((j0 - yTmax + i) & mask)];
+        const float* xw = yLin.data() + yTmax;            // xw[j - j0] = x[j]
         double e0 = 0.0;
-        for (int64_t j = j0; j < j1; ++j)
-            e0 += (double) at (j) * at (j);
+        for (int j = 0; j < yW; ++j)
+            e0 += (double) xw[j] * xw[j];
         if (e0 < 1.0e-24) // digital silence only
             return;
+        // difference function d(t) = sum_j (x[j] - x[j - t])^2: the lags side by side, each one summed over j in the
+        // same order as before (bit-identical), so the inner loop over t vectorises
+        // eight lags at a time held in registers (register blocking); every lag still sums over j in the original order
         dfun[0] = 0.0;
+        int t0 = 1;
+        for (; t0 + 8 <= yTmax + 1; t0 += 8)
+        {
+            double acc[8] = {};
+            for (int j = 0; j < yW; ++j)
+            {
+                const double xj = (double) xw[j];
+                const float* xl = xw + j - t0;              // xl[-u] = x[j - (t0 + u)]
+                for (int u = 0; u < 8; ++u)
+                {
+                    const double e = xj - (double) xl[-u];
+                    acc[u] += e * e;
+                }
+            }
+            for (int u = 0; u < 8; ++u)
+                dfun[(size_t) (t0 + u)] = acc[u];
+        }
+        for (int t = t0; t <= yTmax; ++t)
+        {
+            double d = 0.0;
+            for (int j = 0; j < yW; ++j)
+            {
+                const double e = (double) xw[j] - (double) xw[j - t];
+                d += e * e;
+            }
+            dfun[(size_t) t] = d;
+        }
         double cum = 0.0;
         dnorm[0] = 1.0;
         for (int t = 1; t <= yTmax; ++t)
         {
-            double d = 0.0;
-            for (int64_t j = j0; j < j1; ++j)
-            {
-                const double e = (double) at (j) - at (j - t);
-                d += e * e;
-            }
-            dfun[(size_t) t] = d;
+            const double d = dfun[(size_t) t];
             cum += d;
             dnorm[(size_t) t] = cum > 1.0e-30 ? d * t / cum : 1.0;
         }
@@ -444,7 +473,7 @@ private:
     const ModelRef* net = &kVelvet1Model;
     int hop = 96, win = 576, nfft = 1024, ringSize = 1024, dec = 6, yW = 96, yTmax = 115, yTmin = 16, dRingSize = 256;
     RealFft fft;
-    std::vector<float> window, frameIn, spec, power, ring, dRing;
+    std::vector<float> window, frameIn, spec, power, ring, dRing, yLin;
     std::vector<double> dfun, dnorm;
     float pScale = 1.0f;
     std::array<int, 2> bodyR {}, flatR {}, hfR {};

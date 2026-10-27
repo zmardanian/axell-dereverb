@@ -8,6 +8,7 @@
 // REDUCTION (0..1) mixes the processed signal with the latency-aligned input here, at 48 kHz, so dry and processed
 // paths stay sample-aligned whatever the host rate; LISTEN plays what is removed (input - processed) x REDUCTION.
 // Real-time safe after prepare(): no allocation, locks or I/O in process().
+#include "TrueTone.h"
 #include <axell/dsp/Fft.h>
 #include <axell/dsp/MinPhase.h>
 
@@ -53,6 +54,7 @@ public:
         X.assign (kNb, cf {});
         Y.assign (kNb, cf {});
         timeOut.assign (kNfft, 0.0f);
+        tone.prepare (kNb, kNfft, (double) kFs);
         reset();
         return true;
     }
@@ -73,6 +75,7 @@ public:
         fill = 0;
         dryPos = 0;
         accIn = accRm = accOut = smIn = smRm = smOut = 0.0;
+        tone.reset();
         amt = amtTarget;
         lis = lisTarget;
     }
@@ -88,6 +91,12 @@ public:
     float outputDb() const noexcept { return meterOut.load (std::memory_order_relaxed); }
     float removedDb() const noexcept { return meterRemoved.load (std::memory_order_relaxed); }
     void setListen (bool on) noexcept { lisTarget = on ? 1.0f : 0.0f; }
+    // 4.0 TRUE TONE (TrueTone.h): off = the 3.x path, sample for sample
+    void setTrueTone (bool on) noexcept { trueTone = on; }
+    // research: measure as TRUE TONE does but leave the sound untouched (the model's features, exactly as the plugin sees them)
+    void setTrueToneMeasureOnly (bool on) noexcept { trueToneMeasureOnly = on; }
+    float trueToneDb (int band) const noexcept { return tone.curveDb (band); }
+    float trueToneMeasuredDb (int band) const noexcept { return tone.measuredDb (band); }
 
     void process (float* const* io, int numChannels, int n) noexcept
     {
@@ -139,6 +148,8 @@ public:
                 fill = 0;
                 for (int c = 0; c < ch; ++c)
                     hop (c);
+                if (trueTone)
+                    tone.update (kNb, amt);
                 // meters, smoothed over ~0.5 s (hops of 10.7 ms)
                 const double k = 0.98;
                 smIn = k * smIn + (1 - k) * accIn;
@@ -163,6 +174,13 @@ private:
         for (int k = 0; k < kNb; ++k)
             X[(size_t) k] = cf (spec[(size_t) (2 * k)], spec[(size_t) (2 * k + 1)]);
         net[(size_t) c].frame (X.data(), Y.data());
+        if (trueTone)
+        {
+            tone.observe (X.data(), Y.data(), kNb);   // what the network does, before the correction
+            if (! live && ! trueToneMeasureOnly)
+                for (int k = 0; k < kNb; ++k)
+                    Y[(size_t) k] *= tone.binGain (k);
+        }
         if (live)
         {
             liveFilter (c);
@@ -207,6 +225,8 @@ private:
             // bins far below the frame's level carry no measurable response: they keep the neighbours' (1 = untouched)
             const float r = px > 1.0e-9f * (float) (pm / kNb) ? std::sqrt (std::norm (Y[(size_t) k]) / px) : 1.0f;
             ratio[(size_t) k] = std::clamp (r, kLiveFloor, 1.0f);
+            if (trueTone && ! trueToneMeasureOnly)   // 4.0: the tone correction on top of the removal (up to +3 dB back)
+                ratio[(size_t) k] *= tone.binGain (k);
         }
         design.design (ratio.data(), hDesign.data());
         fir[(size_t) c].setFilter (hDesign.data());
@@ -228,7 +248,8 @@ private:
     static constexpr double kLiveSilentPower = 512.0 * 1.0e-13;
     static constexpr float kSmooth = 0.0005f; // ~40 ms at 48 kHz
     int nch = 1, fill = 0, dryPos = 0, lat = studioLatency();
-    bool live = false;
+    bool live = false, trueTone = false, trueToneMeasureOnly = false;
+    TrueTone tone;
     axell::MinPhaseDesigner design;
     std::array<axell::MinPhaseFir, kMaxCh> fir;
     std::vector<float> ratio, hDesign;

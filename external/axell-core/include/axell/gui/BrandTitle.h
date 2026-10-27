@@ -99,4 +99,28 @@ inline float drawTitle (juce::Graphics& g, float x, float baseline, const juce::
     }
     return right;
 }
+
+// the plugin's version after the title ("v4.0.0"): small and quiet, there to read when it matters (which build is
+// running), never competing with the title. `x` = drawTitle's right edge, `baseline` the title's. Returns the right edge.
+inline float drawVersion (juce::Graphics& g, float x, float baseline, const juce::String& version, float capHeight = 16.5f)
+{
+    using namespace juce;
+    const String s = "v" + version;
+    const Font f (FontOptions (0.62f * capHeight));
+    const float x0 = x + 0.5f * capHeight;
+    g.setFont (f);
+    g.setColour (kIvory.withAlpha (0.42f));
+    g.drawSingleLineText (s, roundToInt (x0), roundToInt (baseline));
+    return x0 + GlyphArrangement::getStringWidth (f, s);
+}
+
+// the same label placed in `area` (a plugin whose header has no room after the title puts it in a margin)
+inline void drawVersionIn (juce::Graphics& g, juce::Rectangle<float> area, const juce::String& version,
+                           juce::Justification just = juce::Justification::centredRight, float capHeight = 16.5f)
+{
+    using namespace juce;
+    g.setFont (Font (FontOptions (0.62f * capHeight)));
+    g.setColour (kIvory.withAlpha (0.42f));
+    g.drawText ("v" + version, area, just, false);
+}
 } // namespace axell::brand

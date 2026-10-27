@@ -46,6 +46,8 @@ public:
         attMax.prepare (maxLook);
         voiceAvgK = 1.0f - onePole (0.25f, fs);     // VOICE HOLD (process' pause flags): the voice's recent gain, 0.25 s
         pauseGlideK = 1.0f - onePole (0.0125f, fs);  // a pause glides to it in 12.5 ms
+        wordK = 1.0f - onePole (kEssWordSec, fs);     // ESS HOLD (flag 2): the word's gain = its recent deepest
+        catchK = 1.0f - onePole (0.010f, fs);         // after an ess the gain returns to the 3.0 path in 10 ms
         maxHold = (int) std::ceil (kMaxHoldMs * 0.001 * fs);
         holdMax.prepare (maxLook + maxHold);
         setLookahead (std::min (maxLook, (int) std::lround (0.002 * fs)));
@@ -107,6 +109,9 @@ public:
             ch.mem = 0.0f;
             ch.gain = 1.0f;
             ch.voiceAvg = 1.0f;
+            ch.word = 1.0f;
+            ch.shadow = 1.0f;
+            ch.catching = false;
         }
         attMax.resetState();
         holdMax.resetState();
@@ -117,6 +122,11 @@ public:
     // (axell-core VoicePresence): VOICE HOLD - the release stops and the gain glides to the voice's recent average, so
     // a pause is not lifted by the release (Axell Duo Compressor 3.0's method). The attack is untouched: the ceiling
     // guarantee holds. Without flags: bit-identical to before.
+    // A flag of 2 marks an ess of the voice (axell-core SibilanceDetector): ESS HOLD - the release stops and the gain
+    // glides (12.5 ms) to the word's own (its recent deepest reduction, 0.15 s), so an ess is limited like the word it
+    // belongs to instead of being lifted by the release (Axell Duo Compressor 4.0's method); a shadow plays the 3.0 path
+    // meanwhile and after the ess the gain glides (10 ms) back to it, so the next vowel is limited exactly as in 3.0.
+    // Flags 0 / 1 only: as 3.0.
     float process (float* const* io, int numChannels, int n, const uint8_t* pause = nullptr) noexcept
     {
         const int nc = std::clamp (numChannels, 1, kMaxCh);
@@ -172,18 +182,45 @@ public:
                 const float need = 1.0f / (aNow + (aHeld - aNow) * ch.mem);
                 // program-dependent release
                 const float tau = invTauFast + (invTauSlow - invTauFast) * ch.mem; // per-sample rate (1 / (tau fs))
+                const float relK = oneMinusExpSmall (std::min (tau, 0.5f));
                 if (pause == nullptr)
-                    ch.env = need < ch.env ? need : std::min (need, ch.env + (need - ch.env) * oneMinusExpSmall (std::min (tau, 0.5f)));
-                else if (pause[i] == 0)
-                {
-                    ch.env = need < ch.env ? need : std::min (need, ch.env + (need - ch.env) * oneMinusExpSmall (std::min (tau, 0.5f)));
-                    ch.voiceAvg += (ch.env - ch.voiceAvg) * voiceAvgK;
-                }
+                    ch.env = need < ch.env ? need : std::min (need, ch.env + (need - ch.env) * relK);
                 else
                 {
-                    if (ch.voiceAvg < ch.env)                       // hold: no release; glide down to the voice's gain
-                        ch.env += (ch.voiceAvg - ch.env) * pauseGlideK;
-                    ch.env = std::min (need, ch.env);               // the attack as always (the ceiling holds)
+                    const uint8_t f = pause[i];
+                    // ESS HOLD: through an ess (and until the gain is back) a shadow plays the 3.0 path
+                    if (f == 2 || ch.catching)
+                        ch.shadow = need < ch.shadow ? need : std::min (need, ch.shadow + (need - ch.shadow) * relK);
+                    if (f == 0)
+                    {
+                        ch.env = need < ch.env ? need : std::min (need, ch.env + (need - ch.env) * relK);
+                        ch.voiceAvg += (ch.env - ch.voiceAvg) * voiceAvgK;
+                        if (ch.catching)                            // after the ess: back to the 3.0 path in ~10 ms
+                        {
+                            if (ch.env < ch.shadow)
+                                ch.env = std::min (need, ch.env + (ch.shadow - ch.env) * catchK);
+                            if (ch.shadow - ch.env < 1.0e-4f)
+                                ch.catching = false;
+                        }
+                    }
+                    else if (f == 2)
+                    {
+                        if (ch.word < ch.env)                       // hold: no release; glide down to the word's gain
+                            ch.env += (ch.word - ch.env) * pauseGlideK;
+                        ch.env = std::min (need, ch.env);           // the attack as always (the ceiling holds)
+                        ch.catching = true;
+                    }
+                    else
+                    {
+                        if (ch.voiceAvg < ch.env)                   // hold: no release; glide down to the voice's gain
+                            ch.env += (ch.voiceAvg - ch.env) * pauseGlideK;
+                        ch.env = std::min (need, ch.env);           // the attack as always (the ceiling holds)
+                        ch.catching = false;
+                    }
+                    if (f != 2)                                     // the word's gain: its recent deepest reduction
+                        ch.word = ch.env < ch.word ? ch.env : ch.word + (ch.env - ch.word) * wordK;
+                    if (! ch.catching)
+                        ch.shadow = ch.env;
                 }
                 const float w = ch.env < 0.891f ? 1.0f : 0.0f; // sustained limiting above 1 dB charges the memory
                 ch.mem += (w - ch.mem) * (w > ch.mem ? memRiseK : memFallK);
@@ -218,7 +255,8 @@ private:
         std::vector<float> delay;
         std::array<std::vector<double>, kSmooth> avgRing;
         std::array<double, kSmooth> avgSum {};
-        float prevU = 0, prevPrevU = 0, openPeak = 0, completedPrev = 0, env = 1, mem = 0, gain = 1, voiceAvg = 1;
+        float prevU = 0, prevPrevU = 0, openPeak = 0, completedPrev = 0, env = 1, mem = 0, gain = 1, voiceAvg = 1, word = 1, shadow = 1;
+        bool catching = false;
     };
     double fs = 48000.0;
     int maxLook = 96, look = 96, mask = 0, pos = 0, histPos = 0;
@@ -227,8 +265,13 @@ private:
     std::array<Chan, kMaxCh> chans {};
     SlidingMax attMax, holdMax;
     static constexpr float kMaxHoldMs = 25.0f;
+#ifndef AXELL_RESEARCH_ESS_WORD_SEC
+    static constexpr float kEssWordSec = 0.30f;    // ESS HOLD: the word's time window (Duo 4.0's, measured on the artist's takes)
+#else
+    static constexpr float kEssWordSec = AXELL_RESEARCH_ESS_WORD_SEC;
+#endif
     int maxHold = 1200, hold = 720;
     float ceiling = 0.891f, invTauFast = 0.0f, invTauSlow = 0.0f, memRiseK = 0.0f, memFallK = 0.0f, link = 1.0f;
-    float voiceAvgK = 0.0f, pauseGlideK = 0.0f;
+    float voiceAvgK = 0.0f, pauseGlideK = 0.0f, wordK = 0.0f, catchK = 0.0f;
 };
 } // namespace axell

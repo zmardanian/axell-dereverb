@@ -29,6 +29,8 @@ APVTS::ParameterLayout DeReverbProcessor::createLayout()
     // 3.0: STUDIO (the look-ahead network, 53 ms) or LIVE (a causal network, no latency: for tracking). Projects saved
     // before 3.0 load in STUDIO (the default), as they were.
     p.push_back (std::make_unique<AudioParameterChoice> (ParameterID { "mode", 2 }, "Mode", StringArray { "Studio", "Live" }, 0));
+    // 4.0: TRUE TONE - gives back the low end the room removal takes beyond the room's share (TrueTone.h)
+    p.push_back (std::make_unique<AudioParameterBool> (ParameterID { "trueTone", 4 }, "True Tone", true));
     return { p.begin(), p.end() };
 }
 
@@ -45,6 +47,7 @@ DeReverbProcessor::DeReverbProcessor()
     pListen = apvts.getRawParameterValue ("listen");
     pOutput = apvts.getRawParameterValue ("output");
     pMode = apvts.getRawParameterValue ("mode");
+    pTrueTone = apvts.getRawParameterValue ("trueTone");
     startTimerHz (20);
 }
 
@@ -103,6 +106,7 @@ void DeReverbProcessor::run (juce::AudioBuffer<float>& buffer, bool bypass)
     {
         d->setAmount (pReduction->load() * 0.01f);
         d->setListen (pListen->load() > 0.5f);
+        d->setTrueTone (pTrueTone->load() > 0.5f);
     }
     const float outTarget = juce::Decibels::decibelsToGain (pOutput->load());
     const float target = bypass ? 1.0f : 0.0f;
@@ -222,6 +226,8 @@ void DeReverbProcessor::setCurrentProgram (int index)
         p->setValueNotifyingHost (p->convertTo0to1 (factoryPresets()[(size_t) index].reduction));
     if (auto* p = apvts.getParameter ("listen"))
         p->setValueNotifyingHost (0.0f);
+    if (auto* p = apvts.getParameter ("trueTone"))   // 4.0: every factory preset uses TRUE TONE
+        p->setValueNotifyingHost (1.0f);
 }
 
 const juce::String DeReverbProcessor::getProgramName (int index)
@@ -272,7 +278,22 @@ void DeReverbProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
     std::unique_ptr<juce::XmlElement> xml (getXmlFromBinary (data, sizeInBytes));
     if (xml != nullptr && xml->hasTagName (apvts.state.getType()))
-        restoreTree (juce::ValueTree::fromXml (*xml));
+    {
+        auto tree = juce::ValueTree::fromXml (*xml);
+        // 4.0: TRUE TONE is on for new instances; a project saved before it existed (no "trueTone", or one without a
+        // value) plays as it did - off
+        auto t = tree.getChildWithProperty ("id", "trueTone");
+        if (! t.isValid())
+        {
+            juce::ValueTree c ("PARAM");
+            c.setProperty ("id", "trueTone", nullptr);
+            c.setProperty ("value", 0.0f, nullptr);
+            tree.appendChild (c, nullptr);
+        }
+        else if (! t.hasProperty ("value"))
+            t.setProperty ("value", 0.0f, nullptr);
+        restoreTree (tree);
+    }
 }
 
 juce::AudioProcessorEditor* DeReverbProcessor::createEditor() { return new DeReverbEditor (*this); }

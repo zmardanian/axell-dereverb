@@ -293,3 +293,25 @@ The 1.0 weights leave 2.6 dB more room on that take at 85 % (D13).
 - **Switching** STUDIO <-> LIVE changes the latency: the axell-core latency handshake (Penta EQ 2.0.1) fades out,
   reports the new latency to the host, switches once compensated and fades in.
 
+## D18 - 4.0: TRUE TONE (`Source/TrueTone.h`, `Source/TrueToneModel.h`, `research/truetone_fit.py`)
+The artist's chain showed De-Reverb taking 3.5 dB off the voice's fundamental (28 takes) and the largest predicted
+listener-score drop of the chain. In simulated rooms with held-out voices, against the direct-path sound, the output
+was level-matched ~3.7 dB low at 63 Hz and 1-1.5 dB high above 400 Hz in the artist-like rooms (better than the
+reverberant input everywhere, but tilted). The tilt depends on the room - and the plugin can see it: how much it
+removes per band.
+- **Kept:** G = the plugin's own band gain (output vs input per third octave, ~10 s average over frames with signal,
+  relative to the full-band gain) -> a ridge-regression correction per REDUCTION amount (0.4 ... 1.0, interpolated,
+  faded out below 0.4), capped at +-3 dB, applied to the processed signal only (Studio: the output spectrum per bin;
+  LIVE: the filter's per-bin response), re-evaluated every 85 ms, smoothed over ~0.5 s, faded in over ~3 s. Trained
+  on 1680 examples (3 held-out ARCTIC voices x 240 artist-like rooms + 8 synthetic small-room types x 40 seeds).
+  Held out, the real plugin after its averages settle: artist-like rooms 1.76 -> 1.09 dB (100 %), 1.23 -> 1.00 dB
+  (85 %); synthetic 1.92 -> 1.64 / 1.74 -> 1.58 dB; 12-17 % of single rooms slightly worse (p95 +0.2-0.34 dB).
+- **Found on the way:** the model must be trained on features the plugin itself measures. Features from re-analysed
+  output audio differ from the network-frame ones in the single-bin bass bands (63 Hz -2.6 vs -7.5 dB): the plugin
+  then overshot +2 dB at 100 Hz. tools/DRRender --measure prints the plugin's own G; the model is fitted on it.
+- **Open question, recorded:** predicted listener scores do not reward it (UTMOS -0.006, DNSMOS -0.049 on the 28
+  takes - DNSMOS prefers the brighter output). The physical error against the true direct sound decided; the artist
+  chose to release without a blind A/B ("assuming the best").
+- Legacy: a state without "trueTone" (or one without a value) loads it off; verified on the artist's session state
+  (3.0.0 vs 4.0.0, four takes, 48 kHz / 128): byte-identical.
+
