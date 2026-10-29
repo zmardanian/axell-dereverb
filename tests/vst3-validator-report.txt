@@ -1,6 +1,6 @@
 * Loading module...
 
-	/var/home/Alex/axell-dereverb/build/AxellDeReverb_artefacts/Release/VST3/Axell De-Reverb.vst3
+	~/axell-dereverb/build/AxellDeReverb_artefacts/Release/VST3/Axell De-Reverb.vst3
 
 * Check valid bundle structure...
 
