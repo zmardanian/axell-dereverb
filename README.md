@@ -10,7 +10,8 @@ The de-reverb of the Axell suite. It removes the room from a close vocal:
 > **Part of Axell's Dojo** - the Axell Signature suite for rap vocals, beats and masters on Linux:
 > [Penta EQ](https://github.com/zmardanian/axell-penta-eq) · [Duo Compressor](https://github.com/zmardanian/axell-duo-compressor) ·
 > [Gate](https://github.com/zmardanian/axell-gate) · [De-Reverb](https://github.com/zmardanian/axell-dereverb) ·
-> [Velvet](https://github.com/zmardanian/axell-velvet) · [Master](https://github.com/zmardanian/axell-master), installed,
+> [Velvet](https://github.com/zmardanian/axell-velvet) · [Master](https://github.com/zmardanian/axell-master) ·
+> [Space](https://github.com/zmardanian/axell-space) · [Forbidden Seal](https://github.com/zmardanian/axell-forbidden-seal), installed,
 > updated and tuned to your voice by the [Axell Signature Dojo](https://github.com/zmardanian/axell-signature-dojo).
 > Since 3.0 the plugins share one core library (`external/axell-core`): a breakthrough in one plugin becomes a
 > feature of the next.
