@@ -75,12 +75,34 @@ jobs:
             & $_.FullName @a 2>&1 | Select-Object -Last 25
             Write-Host ("exit code 0x{0:X8}" -f $LASTEXITCODE)
           }
+      # Linux: pluginval 1.0.4 built from source with the JUCE run-loop fix (axell-core cmake/JuceFixes.cmake): the
+      # stock binary can crash at exit in its own hosting code (~11 % of runs with Forbidden Seal). Built once, cached.
+      - name: pluginval with the JUCE run-loop fix (Linux, cached)
+        if: runner.os == 'Linux'
+        id: pvcache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: pv-fixed
+          key: pluginval-1.0.4-axellfix-${{ hashFiles('**/JuceFixes.cmake') }}
+      - name: Build pluginval with the fix (Linux, cache miss)
+        if: runner.os == 'Linux' && steps.pvcache.outputs.cache-hit != 'true'
+        run: |
+          git clone -q --depth 1 --branch v1.0.4 --recurse-submodules --shallow-submodules https://github.com/Tracktion/pluginval.git pv-src
+          FIX=$(find . -path ./pv-src -prune -o -name JuceFixes.cmake -print | head -1)
+          printf 'include("%s")\naxell_fix_juce("%s")\n' "$PWD/$FIX" "$PWD/pv-src/modules/juce" > pvfix.cmake && cmake -P pvfix.cmake
+          grep -q AXELL-FIX-RUNLOOP pv-src/modules/juce/modules/juce_audio_processors/format_types/juce_VST3PluginFormat.cpp
+          sed -i 's/JUCE_PLUGINHOST_LADSPA=1/JUCE_PLUGINHOST_LADSPA=0/' pv-src/CMakeLists.txt
+          cmake -S pv-src -B pv-build -G Ninja -DCMAKE_BUILD_TYPE=Release >/dev/null && cmake --build pv-build -j4
+          mkdir -p pv-fixed && cp pv-build/pluginval_artefacts/Release/pluginval pv-fixed/
       - name: pluginval (strictness 10)
         run: |
-          if [ "$RUNNER_OS" = "Windows" ]; then Z=pluginval_Windows.zip; S=.github/pluginval-windows.sha256; else Z=pluginval_Linux.zip; S=.github/pluginval.sha256; fi
-          curl -fsSL -o pluginval.zip "https://github.com/Tracktion/pluginval/releases/download/v1.0.4/$Z"
-          echo "$(cat $S)  pluginval.zip" | sha256sum -c
-          unzip -o pluginval.zip
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            curl -fsSL -o pluginval.zip "https://github.com/Tracktion/pluginval/releases/download/v1.0.4/pluginval_Windows.zip"
+            echo "$(cat .github/pluginval-windows.sha256)  pluginval.zip" | sha256sum -c
+            unzip -o pluginval.zip
+          else
+            cp pv-fixed/pluginval ./pluginval
+          fi
           $RUN ./pluginval$EXE --strictness-level 10 --validate-in-process \
             --validate "build/AxellDeReverb_artefacts/Release/VST3/Axell De-Reverb.vst3" 2>&1 | tee reports/pluginval-$RUNNER_OS.txt
       - name: Render the match signal through the built VST3

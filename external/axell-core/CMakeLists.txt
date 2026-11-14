@@ -5,6 +5,12 @@
 #   axell_core_add_gui(MyPlugin)          # Axell look and feel + Inter fonts compiled into MyPlugin
 cmake_minimum_required(VERSION 3.22)
 
+# fixes to JUCE itself (cmake/JuceFixes.cmake): applied to the JUCE source this project builds with, at configure time
+include(${CMAKE_CURRENT_LIST_DIR}/cmake/JuceFixes.cmake)
+if(DEFINED juce_SOURCE_DIR)
+  axell_fix_juce("${juce_SOURCE_DIR}")
+endif()
+
 add_library(axell_core_dsp INTERFACE)
 target_include_directories(axell_core_dsp INTERFACE ${CMAKE_CURRENT_LIST_DIR}/include)
 target_compile_features(axell_core_dsp INTERFACE cxx_std_17)

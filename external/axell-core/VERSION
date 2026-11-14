@@ -1,1 +1,1 @@
-axell-core be5b2c9
+axell-core be5b2c9 + JUCE run-loop fix (axell-core e19cc07, cmake/JuceFixes.cmake)
