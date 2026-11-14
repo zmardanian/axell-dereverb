@@ -1,5 +1,7 @@
-# Builds Axell De-Reverb on a clean Ubuntu 24.04 and runs its test suites and pluginval on every push.
-# Least privilege: read-only token, no secrets, actions pinned to exact commits.
+# Builds Axell De-Reverb on Linux (Ubuntu 24.04) and Windows (MSVC), runs the test suites and pluginval on both, renders a
+# fixed signal through the built VST3 on each (the independent AuditHost, as a DAW would load it) and checks Linux and
+# Windows sound the same. The Windows VST3 is kept as an artifact. Least privilege: read-only token, no secrets,
+# actions pinned to exact commits.
 name: CI
 on:
   push:
@@ -12,30 +14,76 @@ concurrency:
   cancel-in-progress: true
 jobs:
   build-and-test:
-    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
-      - name: System packages (the same list as scripts/setup-toolbox.sh)
+      - name: System packages (Linux; the same list as scripts/setup-toolbox.sh)
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential cmake ninja-build git pkg-config curl unzip xvfb \
             libasound2-dev libfreetype-dev libfontconfig1-dev libx11-dev libxcomposite-dev \
             libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev libxrender-dev libgl1-mesa-dev
-      - name: Configure
-        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-      - name: Build
-        run: cmake --build build --target AxellDeReverb_VST3 DrDspTests DrPluginTests -j4
-      - name: DSP suite (48 kHz)
-        run: ./build/DrDspTests --quick
+      - name: Configure and build (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --target AxellDeReverb_VST3 DrDspTests DrPluginTests DrAuditHost -j4
+          echo "BIN=build" >> "$GITHUB_ENV"; echo "EXE=" >> "$GITHUB_ENV"; echo "RUN=xvfb-run -a" >> "$GITHUB_ENV"
+      - name: Configure and build (Windows, MSVC)
+        if: runner.os == 'Windows'
+        run: |
+          cmake -B build -G "Visual Studio 17 2022" -A x64
+          cmake --build build --config Release --target AxellDeReverb_VST3 DrDspTests DrPluginTests DrAuditHost -- -m
+          echo "BIN=build/Release" >> "$GITHUB_ENV"; echo "EXE=.exe" >> "$GITHUB_ENV"; echo "RUN=" >> "$GITHUB_ENV"
+      - name: DSP suite
+        run: ./$BIN/DrDspTests$EXE --quick
       - name: Plugin suite
-        run: xvfb-run -a ./build/DrPluginTests_artefacts/Release/DrPluginTests
+        run: $RUN ./build/DrPluginTests_artefacts/Release/DrPluginTests$EXE
       - name: pluginval (strictness 10)
         run: |
-          curl -fsSL -o pluginval.zip https://github.com/Tracktion/pluginval/releases/download/v1.0.4/pluginval_Linux.zip
-          echo "$(cat .github/pluginval.sha256)  pluginval.zip" | sha256sum -c
+          if [ "$RUNNER_OS" = "Windows" ]; then Z=pluginval_Windows.zip; S=.github/pluginval-windows.sha256; else Z=pluginval_Linux.zip; S=.github/pluginval.sha256; fi
+          curl -fsSL -o pluginval.zip "https://github.com/Tracktion/pluginval/releases/download/v1.0.4/$Z"
+          echo "$(cat $S)  pluginval.zip" | sha256sum -c
           unzip -o pluginval.zip
-          xvfb-run -a ./pluginval --strictness-level 10 --validate-in-process \
+          $RUN ./pluginval$EXE --strictness-level 10 --validate-in-process \
             --validate "build/AxellDeReverb_artefacts/Release/VST3/Axell De-Reverb.vst3"
+      - name: Render the match signal through the built VST3
+        run: |
+          mkdir -p match
+          python3 tools/xplat.py gen match/in.f32 || python tools/xplat.py gen match/in.f32
+          printf 'rate 48000\nchannels 2\ninput match/in.f32\noutput match/default.f32\nrun\n' > match/job.txt
+          $RUN ./build/DrAuditHost_artefacts/Release/DrAuditHost$EXE "build/AxellDeReverb_artefacts/Release/VST3/Axell De-Reverb.vst3" match/job.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: match-${{ runner.os }}
+          path: match/default.f32
+          retention-days: 3
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: runner.os == 'Windows'
+        with:
+          name: AxellDeReverb-windows-vst3
+          path: build/AxellDeReverb_artefacts/Release/VST3/
+          retention-days: 30
+  linux-windows-match:
+    needs: build-and-test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: match-*
+      - name: Linux and Windows renders match
+        run: python3 tools/xplat.py compare match-Linux/default.f32 match-Windows/default.f32 -90
