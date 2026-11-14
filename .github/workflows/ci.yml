@@ -1,4 +1,4 @@
-# Builds Axell De-Reverb on Linux (Ubuntu 24.04) and Windows (clang-cl), runs the test suites and pluginval on both, renders a
+# Builds Axell De-Reverb on Linux (Ubuntu 24.04) and Windows (MSVC), runs the test suites and pluginval on both, renders a
 # fixed signal through the built VST3 on each (the independent AuditHost, as a DAW would load it) and checks Linux and
 # Windows sound the same. The Windows VST3 is kept as an artifact. Least privilege: read-only token, no secrets,
 # actions pinned to exact commits.
@@ -45,11 +45,11 @@ jobs:
           cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
           cmake --build build --target AxellDeReverb_VST3 DrDspTests DrPluginTests DrAuditHost -j4
           echo "BIN=build" >> "$GITHUB_ENV"; echo "EXE=" >> "$GITHUB_ENV"; echo "RUN=xvfb-run -a" >> "$GITHUB_ENV"
-      - name: Configure and build (Windows, clang-cl)
+      - name: Configure and build (Windows, MSVC)
         if: runner.os == 'Windows'
         run: |
-          # clang-cl (LLVM, part of Visual Studio): measured 6-13 % less CPU than MSVC on the same runner
-          cmake -B build -G "Visual Studio 17 2022" -A x64 -T ClangCL
+          # MSVC: as fast as or faster than clang-cl for this plugin, measured with both compilers on one runner (2026-11-14)
+          cmake -B build -G "Visual Studio 17 2022" -A x64
           cmake --build build --config Release --target AxellDeReverb_VST3 DrDspTests DrPluginTests DrAuditHost -- -m
           echo "BIN=build/Release" >> "$GITHUB_ENV"; echo "EXE=.exe" >> "$GITHUB_ENV"; echo "RUN=" >> "$GITHUB_ENV"
       - name: DSP suite
@@ -59,7 +59,7 @@ jobs:
           set +e; ./$BIN/DrDspTests$EXE $ARGS 2>&1 | tee reports/dsp-$RUNNER_OS.txt; rc=${PIPESTATUS[0]}; set -e
           if [ "$rc" != 0 ]; then
             # CPU budgets are set on the reference machine; a shared CI runner may miss them - a warning, not a failure
-            if [ "${{ inputs.full }}" = "true" ] && ! grep -E "^ *FAIL" reports/dsp-$RUNNER_OS.txt | grep -qv "CPU"; then
+            if [ "${{ inputs.full }}" = "true" ] && ! grep -E "^ *FAIL +" reports/dsp-$RUNNER_OS.txt | grep -qv "CPU"; then
               echo "::warning::only CPU budgets were missed on this shared runner (they are checked on the reference machine)"
             else exit "$rc"; fi
           fi
