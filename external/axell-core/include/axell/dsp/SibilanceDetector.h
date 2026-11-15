@@ -359,13 +359,28 @@ private:
         for (int k = flatR[0]; k < flatR[1]; ++k)
             asum += (double) power[(size_t) k];
         const double floorP = 1.0e-10 * asum / nf + 1.0e-30;
-        double lsum = 0.0;
+        // the sum of the logs as one log of the product: mantissas multiplied (renormalised before they could
+        // underflow), exponents added - one log per frame instead of one per bin. The feature is a float, so the
+        // different rounding of the double sum almost never shows: 141,396 frames bit-identical in the test (the
+        // user chose this trade, OPTIMISATION.md D1); Gate -2.5 % CPU
+        double prod = 1.0;
+        long esum = 0;
         asum = 0.0;
         for (int k = flatR[0]; k < flatR[1]; ++k)
         {
-            lsum += std::log ((double) power[(size_t) k] + floorP);
-            asum += (double) power[(size_t) k] + floorP;
+            const double v = (double) power[(size_t) k] + floorP;
+            int e;
+            prod *= std::frexp (v, &e);
+            esum += e;
+            if (prod < 1.0e-200)
+            {
+                int e2;
+                prod = std::frexp (prod, &e2);
+                esum += e2;
+            }
+            asum += v;
         }
+        const double lsum = std::log (prod) + (double) esum * 0.69314718055994530942;
         const float flat = (float) (std::exp (lsum / nf) / (asum / nf));
         const float lvl = (float) (10.0 * std::log10 (total + 1.0e-24));
         // loud reference: running 95th percentile of the frame level (quantile tracker, 0.5 dB steps)

@@ -41,6 +41,70 @@ public:
             acc[p] = (s0[p] + s1[p]) + (s2[p] + s3[p]);
     }
 
+    // phases 6 and 7 only, with exactly the arithmetic interpolate() uses for them (the same partial sums in the same
+    // order per phase: bit-identical values) - the two values a sample hands to the next one's peak refinement
+    static inline void interpolateLast2 (const float* w, const Taps& taps, float& a6, float& a7) noexcept
+    {
+        float s0[2] {}, s1[2] {}, s2[2] {}, s3[2] {};
+        for (int k = 0; k < kTaps; k += 4)
+        {
+            const float* t0 = taps[(size_t) k].data() + 6;
+            const float* t1 = taps[(size_t) k + 1].data() + 6;
+            const float* t2 = taps[(size_t) k + 2].data() + 6;
+            const float* t3 = taps[(size_t) k + 3].data() + 6;
+            const float w0 = w[k], w1 = w[k + 1], w2 = w[k + 2], w3 = w[k + 3];
+            for (int p = 0; p < 2; ++p)
+            {
+                s0[p] += t0[p] * w0;
+                s1[p] += t1[p] * w1;
+                s2[p] += t2[p] * w2;
+                s3[p] += t3[p] * w3;
+            }
+        }
+        a6 = (s0[0] + s1[0]) + (s2[0] + s3[0]);
+        a7 = (s0[1] + s1[1]) + (s2[1] + s3[1]);
+    }
+
+    // a bound on any refined peak of one sample, per unit of the window's largest |sample|: the largest sum of |taps|
+    // over the phases (no interpolated point exceeds window max x that), x 1.125 (the parabolic refinement adds at most
+    // an eighth of the middle point), x 1.001 (float rounding of the sums)
+    static float peakBound (const Taps& taps)
+    {
+        double worst = 1.0;
+        for (int p = 1; p < kPhases; ++p)
+        {
+            double l1 = 0.0;
+            for (int k = 0; k < kTaps; ++k)
+                l1 += std::abs ((double) taps[(size_t) k][(size_t) p]);
+            worst = std::max (worst, l1);
+        }
+        return (float) (worst * 1.125 * 1.001);
+    }
+
+    // an upper bound of max |x| over at least the last kTaps + 1 samples (the refinement also reads the previous
+    // sample's phase 7, whose window is one sample older), cheap per sample: nine completed chunks of 16 plus the
+    // chunk in progress (144 - 159 samples - only ever more, so a skip it allows is safe)
+    struct WindowMax
+    {
+        std::array<float, kTaps / 16 + 1> chunk {};
+        float cur = 0.0f, cached = 0.0f;
+        int idx = 0, cnt = 0;
+        void reset() noexcept { chunk.fill (0.0f); cur = cached = 0.0f; idx = cnt = 0; }
+        void push (float v) noexcept
+        {
+            cur = std::max (cur, std::abs (v));
+            if (++cnt == 16)
+            {
+                chunk[(size_t) idx] = cur;
+                idx = (idx + 1) % (int) chunk.size();
+                cur = 0.0f;
+                cnt = 0;
+                cached = *std::max_element (chunk.begin(), chunk.end());
+            }
+        }
+        float bound() const noexcept { return std::max (cached, cur); }
+    };
+
     static void designTaps (Taps& taps)
     {
         constexpr int N = kPhases * kTaps + 1, M = N / 2;
@@ -83,6 +147,7 @@ public:
     void prepare()
     {
         designTaps (taps);
+        bound = peakBound (taps);
         reset();
     }
 
@@ -93,6 +158,8 @@ public:
         pos = 0;
         prevU.fill (0.0f);
         prevPrevU.fill (0.0f);
+        for (auto& wm : winMax)
+            wm.reset();
         peak.store (0.0f);
         held = 0.0f;
     }
@@ -109,9 +176,18 @@ public:
             {
                 auto& h = hist[(size_t) c];
                 h[(size_t) pos] = h[(size_t) (pos + kTaps)] = x[c][i];
+                winMax[(size_t) c].push (x[c][i]);
                 const float* w = h.data() + pos + 1;
                 float acc[kPhases];
-                TruePeakMeter::interpolate (w, taps, acc);
+                // nothing this sample can produce reaches the block's largest peak so far: phases 1 - 5 cannot change
+                // the result (zeros instead), 6 and 7 hand on to the next sample's refinement - exact (OPTIMISATION M1)
+                if (winMax[(size_t) c].bound() * bound < blockMax)
+                {
+                    TruePeakMeter::interpolateLast2 (w, taps, acc[6], acc[7]);
+                    acc[1] = acc[2] = acc[3] = acc[4] = acc[5] = 0.0f;
+                }
+                else
+                    TruePeakMeter::interpolate (w, taps, acc);
                 acc[0] = w[centre];
                 float a = prevPrevU[(size_t) c], b = prevU[(size_t) c];
                 for (int p = 0; p < kPhases; ++p)
@@ -149,6 +225,8 @@ private:
     Taps taps {};
     std::array<std::array<float, 2 * kTaps>, kMaxCh> hist {};
     std::array<float, kMaxCh> prevU {}, prevPrevU {};
+    std::array<WindowMax, kMaxCh> winMax {};
+    float bound = 4.0f;
     int pos = 0;
     float held = 0.0f;
     std::atomic<float> peak { 0.0f };

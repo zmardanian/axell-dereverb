@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.0.1 - 2026-11-15
+- **Faster, the same sound** (a suite-wide optimisation; the rule: byte-for-byte the same output). The shared FFT
+  (the analysis and resynthesis of every 1024-sample frame) multiplies complex numbers inline.
+- Output byte-for-byte the same as 4.0.0: 48 renders through the released 4.0.0 and the new build (all 3 factory
+  presets and 20 random settings of every parameter, on a vocal and a mix).
+- The plugin's processing time on a 60 s vocal (median of five alternating runs through a VST3 host): 2.20 -> 1.91 s,
+  **-13 %** against the 4.0.0 release.
+- Verified: DSP 59 + plugin 34 checks (ASan + UBSan clean), quality audit 21/21, core 143/143, pluginval strictness 10
+  (+10 extra runs, 0 crashes), VST3 validator 47/47.
+
 ## 4.0.0 - 2026-10-27
 - **TRUE TONE (new):** in small rooms the room removal took a little more low end than the room had added - against
   the voice's direct sound the output was ~3.7 dB thin at 63 Hz and 1-1.5 dB bright above 400 Hz. TRUE TONE watches

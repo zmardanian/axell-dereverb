@@ -33,6 +33,7 @@ public:
         fs = sampleRate;
         maxLook = std::max (kSmooth, maxLookahead);
         TruePeakMeter::designTaps (taps);
+        bound = TruePeakMeter::peakBound (taps);
         int cap = 1;
         while (cap < maxLook + kTaps + 4)
             cap <<= 1;
@@ -98,6 +99,7 @@ public:
         for (auto& ch : chans)
         {
             ch.hist.fill (0.0f);
+            ch.winMax.reset();
             std::fill (ch.delay.begin(), ch.delay.end(), 0.0f);
             for (int k = 0; k < kSmooth; ++k)
             {
@@ -139,9 +141,19 @@ public:
             {
                 auto& ch = chans[(size_t) c];
                 ch.hist[(size_t) histPos] = ch.hist[(size_t) (histPos + kTaps)] = io[c][i];
+                ch.winMax.push (io[c][i]);
                 const float* w = ch.hist.data() + histPos + 1;
                 float acc[kPhases];
-                TruePeakMeter::interpolate (w, taps, acc);
+                // every point and refined peak of this sample stays below the ceiling, so phases 1 - 5 cannot change
+                // the gain (only `peak > ceiling` matters, and above it the larger values decide): zeros instead;
+                // phases 6 and 7 hand on to the next sample's refinement - computed exactly (OPTIMISATION M1)
+                if (ch.winMax.bound() * bound < ceiling)
+                {
+                    TruePeakMeter::interpolateLast2 (w, taps, acc[6], acc[7]);
+                    acc[1] = acc[2] = acc[3] = acc[4] = acc[5] = 0.0f;
+                }
+                else
+                    TruePeakMeter::interpolate (w, taps, acc);
                 acc[0] = w[centre];
                 float thisPeak = 0.0f, lateForPrev = 0.0f, a = ch.prevPrevU, b = ch.prevU;
                 for (int p = 0; p < kPhases; ++p)
@@ -252,6 +264,7 @@ private:
     struct Chan
     {
         std::array<float, 2 * kTaps> hist {};
+        TruePeakMeter::WindowMax winMax;
         std::vector<float> delay;
         std::array<std::vector<double>, kSmooth> avgRing;
         std::array<double, kSmooth> avgSum {};
@@ -271,6 +284,7 @@ private:
     static constexpr float kEssWordSec = AXELL_RESEARCH_ESS_WORD_SEC;
 #endif
     int maxHold = 1200, hold = 720;
+    float bound = 4.0f;   // TruePeakMeter::peakBound of the taps (M1)
     float ceiling = 0.891f, invTauFast = 0.0f, invTauSlow = 0.0f, memRiseK = 0.0f, memFallK = 0.0f, link = 1.0f;
     float voiceAvgK = 0.0f, pauseGlideK = 0.0f, wordK = 0.0f, catchK = 0.0f;
 };

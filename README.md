@@ -169,17 +169,18 @@ The reasoning behind every design choice is in [docs/DECISIONS.md](docs/DECISION
 | **2.0.0** | 2026-10-17 | Rap and spoken word first: fine-tuned on dense takes (0-120 ms between phrases), 15 % singing, home rooms weighted | Regular speech: ViSQOL 4.13, CD 3.43, room left -5.7 dB (1.0: 4.11 / 3.45 / -5.4); dense takes better on every score; the artist's take: the room after each phrase -27.9 -> -37.8 dB |
 | **3.0.0** | 2026-10-26 | LIVE: a causal network (fine-tuned from 2.0) as a zero-latency minimum-phase filter per hop with an onset guard (Axell Velvet 3.0's method via the shared core); STUDIO / LIVE through the latency handshake; Axell's Dojo look | LIVE at 0 ms: room left -3.7 dB, ViSQOL 4.00, voice damage -11.5 dB (STUDIO -11.3); STUDIO unchanged (C++ = trained model to -134 dB); 45 DSP + 27 plugin checks, ASan clean, audit 21/21, pluginval L10, validator 47/47 |
 | **4.0.0** | 2026-10-27 | TRUE TONE: the plugin's own per-band removal -> a learned tone correction (per REDUCTION amount, +-3 dB, Studio and LIVE, no latency), trained on 1680 held-out-voice examples; version in the header | Unseen artist-like rooms: tone error 1.76 -> 1.09 dB (100 %), 1.23 -> 1.00 dB (85 %); synthetic rooms 1.92 -> 1.64 dB; 3.x projects render byte-identically; 59 DSP + 34 plugin checks, ASan clean, audit 21/21, pluginval L10, validator 47/47 |
+| **4.0.1** | 2026-11-15 | Faster shared FFT (inline complex products) | Output byte-identical to 4.0.0 (48 renders: 3 presets + 20 random settings); processing time on a 60 s vocal 2.20 -> 1.91 s (-13 %) |
 
 Every design decision with its measurement: [docs/DECISIONS.md](docs/DECISIONS.md); all changes: [CHANGELOG.md](CHANGELOG.md).
 
 ## Install (Linux)
 
-Download `AxellDeReverb-4.0.0-linux-x86_64.tar.gz` from the
+Download `AxellDeReverb-4.0.1-linux-x86_64.tar.gz` from the
 [latest release](https://github.com/zmardanian/axell-dereverb/releases/latest) (optional: `sha256sum -c SHA256SUMS.txt`),
 then:
 
-    tar xzf AxellDeReverb-4.0.0-linux-x86_64.tar.gz
-    cd AxellDeReverb-4.0.0-linux-x86_64
+    tar xzf AxellDeReverb-4.0.1-linux-x86_64.tar.gz
+    cd AxellDeReverb-4.0.1-linux-x86_64
     ./install.sh
 
 Or let the [Axell Signature Dojo](https://github.com/zmardanian/axell-signature-dojo) install and update it.

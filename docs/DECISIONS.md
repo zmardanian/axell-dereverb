@@ -315,3 +315,13 @@ removes per band.
 - Legacy: a state without "trueTone" (or one without a value) loads it off; verified on the artist's session state
   (3.0.0 vs 4.0.0, four takes, 48 kHz / 128): byte-identical.
 
+
+## D19 - 4.0.1: the same sound, less work
+Part of the suite-wide optimisation campaign (profile of a 60 s vocal: network dot products 64 %, already AVX2
+multi-versioned; activations 9.5 %). Rule: byte-identical output.
+- **Kept (axell-core V1):** complex products written out in the FFT (GCC's std::complex went through __muldc3).
+- **Verified:** 48 renders vs the released 4.0.0: byte-identical; processing time through a VST3 host, 60 s vocal,
+  median of five alternating runs: 2.20 -> 1.91 s (-13 %).
+- **Rejected by measurement:** a hand-written fast exp/tanh for the activations (output -156 dBFS different and
+  19 % slower: glibc's are faster); SIMD activations (would change the output and break the Linux/Windows match,
+  for at most ~5 %).

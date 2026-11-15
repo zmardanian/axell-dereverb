@@ -6,7 +6,7 @@
 
 namespace axell::brand
 {
-// the brush face (Latin + the suite's kanji: 五 双 門 静 絹 匠 道 場)
+// the brush face (Latin + the suite's kanji: 五 双 門 静 絹 匠 道 場 響 禁)
 inline juce::Typeface::Ptr brushTypeface()
 {
     static juce::Typeface::Ptr tf = juce::Typeface::createSystemTypefaceFor (fontdata::yujiSyuku, (size_t) fontdata::yujiSyukuSize);

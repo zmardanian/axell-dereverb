@@ -50,9 +50,9 @@ public:
         {
             const auto a = z[(size_t) (k % h)];
             const auto b = std::conj (z[(size_t) ((h - k) % h)]);
-            const auto e = 0.5 * (a + b), o = std::complex<double> (0.0, -0.5) * (a - b);
+            const auto e = 0.5 * (a + b), o = cmul (std::complex<double> (0.0, -0.5), a - b);
             const auto w = k < h ? split[(size_t) k] : std::complex<double> (-1.0, 0.0);
-            const auto x = e + w * o;
+            const auto x = e + cmul (w, o);
             out[2 * k] = (float) x.real();
             out[2 * k + 1] = (float) x.imag();
         }
@@ -66,8 +66,8 @@ public:
         {
             const std::complex<double> a (in[2 * k], in[2 * k + 1]);
             const std::complex<double> b (in[2 * (h - k)], -in[2 * (h - k) + 1]);
-            const auto e = a + b, o = (a - b) * std::conj (split[(size_t) k]);
-            z[(size_t) rev[(size_t) k]] = std::conj (e + std::complex<double> (0.0, 1.0) * o); // conjugate: inverse via forward
+            const auto e = a + b, o = cmul (a - b, std::conj (split[(size_t) k]));
+            z[(size_t) rev[(size_t) k]] = std::conj (e + cmul (std::complex<double> (0.0, 1.0), o)); // conjugate: inverse via forward
         }
         butterflies();
         const double sc = 1.0 / n;
@@ -80,6 +80,14 @@ public:
     }
 
 private:
+    // complex product with the textbook formula, inline. std::complex's operator* is the same arithmetic for finite
+    // values, but GCC/Clang route it through __muldc3 (C99 Annex G NaN/inf recovery) - an out-of-line call per
+    // product. Bit-identical for every finite input (MSVC's operator* is already this formula).
+    static std::complex<double> cmul (const std::complex<double>& a, const std::complex<double>& b) noexcept
+    {
+        return { a.real() * b.real() - a.imag() * b.imag(), a.real() * b.imag() + a.imag() * b.real() };
+    }
+
     void butterflies() noexcept
     {
         for (int len = 2; len <= h; len <<= 1)
@@ -88,7 +96,7 @@ private:
             for (int s = 0; s < h; s += len)
                 for (int k = 0; k < half; ++k)
                 {
-                    const auto t = tw[(size_t) (k * step)] * z[(size_t) (s + k + half)];
+                    const auto t = cmul (tw[(size_t) (k * step)], z[(size_t) (s + k + half)]);
                     const auto u = z[(size_t) (s + k)];
                     z[(size_t) (s + k)] = u + t;
                     z[(size_t) (s + k + half)] = u - t;
