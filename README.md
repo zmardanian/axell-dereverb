@@ -1,55 +1,66 @@
-# Axell De-Reverb (VST3, Linux + Windows)
+<p align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/type/hero-dark.png">
+  <img alt="Axell De-Reverb - Take the room out of your vocal. Keep the voice." src="docs/img/type/hero-light.png" width="720">
+</picture>
+</p>
 
-[![CI](https://github.com/zmardanian/axell-dereverb/actions/workflows/ci.yml/badge.svg)](https://github.com/zmardanian/axell-dereverb/actions/workflows/ci.yml)
-<!-- badges -->
-[![Latest release](https://img.shields.io/github/v/release/zmardanian/axell-dereverb?style=flat-square&label=release&color=9c7434)](https://github.com/zmardanian/axell-dereverb/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/zmardanian/axell-dereverb/total?style=flat-square&color=2a1f17)](https://github.com/zmardanian/axell-dereverb/releases)
-![Linux + Windows](https://img.shields.io/badge/Linux%20%2B%20Windows-x86__64-2a1f17?style=flat-square)
-![VST3](https://img.shields.io/badge/format-VST3-2a1f17?style=flat-square)
-[![Licence AGPL-3.0](https://img.shields.io/badge/licence-AGPL--3.0-6b5a4a?style=flat-square)](LICENSE)
-<!-- /badges -->
+<p align="center">
+  <a href="https://github.com/zmardanian/axell-dereverb/releases/latest"><img src="https://img.shields.io/github/v/release/zmardanian/axell-dereverb?style=flat-square&label=release&color=24678c" alt="latest release"></a>
+  <a href="https://github.com/zmardanian/axell-dereverb/releases"><img src="https://img.shields.io/github/downloads/zmardanian/axell-dereverb/total?style=flat-square&color=2a1f17" alt="downloads"></a>
+  <img src="https://img.shields.io/badge/Windows%20%C2%B7%20Linux-x86__64-2a1f17?style=flat-square" alt="Windows and Linux">
+  <a href="https://github.com/zmardanian/axell-dereverb/actions/workflows/ci.yml"><img src="https://github.com/zmardanian/axell-dereverb/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <img src="https://img.shields.io/badge/licence-AGPL--3.0-6b5a4a?style=flat-square" alt="AGPL-3.0">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/dereverb-hidpi2x.png" alt="Axell De-Reverb" width="100%">
+</p>
+
+<p align="center">
+  <b>Recorded in a closet, a bedroom or a car? Axell De-Reverb takes the room out.</b><br>
+  A trained network removes the tail <i>and</i> the 350-600 Hz box of small rooms - the part most de-reverbs leave alone because they were built for halls - while TRUE TONE keeps your voice's real tone.
+</p>
+
+<p align="center">
+  <a href="https://github.com/zmardanian/axell-dereverb/releases/latest"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/type/dl-windows-dark.png">
+  <img alt="Download for Windows" src="docs/img/type/dl-windows-light.png" height="58">
+</picture></a>
+  &nbsp;&nbsp;
+  <a href="https://github.com/zmardanian/axell-dereverb/releases/latest"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/type/dl-linux-dark.png">
+  <img alt="Download for Linux" src="docs/img/type/dl-linux-light.png" height="58">
+</picture></a>
+</p>
+
+<p align="center"><sub>Free and open source (AGPL-3.0)  ·  Windows 10 / 11 and Linux  ·  any VST3 host - FL Studio, Ableton Live, Cubase, Studio One, Bitwig, REAPER</sub></p>
+
+<br>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/type/h-why-dark.png">
+  <img alt="01 Why it's different - The room out. The voice in." src="docs/img/type/h-why-light.png" height="68">
+</picture>
+
+- **Better than the research standard** - on voices and rooms it never heard: quality (ViSQOL) 3.96 -> 4.13, where WPE reaches 3.99; intelligibility 0.74 -> 0.78.
+- **Built for small rooms** - booths, closets, cars, bathrooms - the box and the early reflections, not just the tail.
+- **TRUE TONE** - a learned tone correction gives back the low end room removal takes too much of.
+- **Record through it** - LIVE mode for tracking; STUDIO mode with look-ahead for mixing.
+- **13 % faster in 4.0.1** - byte-for-byte the same sound.
+
+
+<br>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/type/h-does-dark.png">
+  <img alt="02 What it does - What it does." src="docs/img/type/h-does-light.png" height="68">
+</picture>
 
 The de-reverb of the Axell suite. It removes the room from a close vocal:
 - **the tail** of a bare bedroom or a bathroom;
 - **the early reflections and the 350-600 Hz box** of a wardrobe booth, a closet or a car, which most de-reverbs
   leave alone because they were built for long tails in big rooms.
-
-> **Part of Axell's Dojo** - the Axell Signature suite for rap vocals, beats and masters, on Linux and Windows:
-> [Penta EQ](https://github.com/zmardanian/axell-penta-eq) ·
-> [Duo Compressor](https://github.com/zmardanian/axell-duo-compressor) ·
-> [Gate](https://github.com/zmardanian/axell-gate) · **De-Reverb** ·
-> [Velvet](https://github.com/zmardanian/axell-velvet) · [Master](https://github.com/zmardanian/axell-master) ·
-> [Space](https://github.com/zmardanian/axell-space) ·
-> [Forbidden Seal](https://github.com/zmardanian/axell-forbidden-seal) ·
-> [Axell 76](https://github.com/zmardanian/axell-76)
-> Installed, updated and tuned to your voice by the [Axell Signature Dojo](https://github.com/zmardanian/axell-signature-dojo)
-> (one Windows installer carries the whole suite). The plugins share one core library (`external/axell-core`):
-> a breakthrough in one plugin becomes a feature of the next.
-
-![Axell De-Reverb](docs/screenshots/dereverb.png)
-
-## What's new in 4.0
-
-- **TRUE TONE**: De-Reverb gives back the low end it used to take beyond the room's share, and the slight extra
-  brightness. It watches what it removes in each band and corrects the tone (at most +-3 dB, no latency). In rooms
-  like the artist's, the tone error against the real voice drops **38 %** (1.76 -> 1.09 dB at 100 %). On for new
-  instances and presets; projects from 3.x sound exactly as before (DECISIONS D18).
-- **Version in the header**, small and quiet after the title.
-
-## What's new in 3.0
-
-- **LIVE mode: zero latency, for recording.** STUDIO looks 32 ms ahead (53 ms latency) - for mixing. LIVE runs a
-  causal version of the network (fine-tuned from 2.0's) as a minimum-phase filter that changes every 10.7 ms (Axell
-  Velvet 3.0's method, now in the shared core), with an onset guard that keeps word starts intact (a room only decays,
-  so a sudden rise is the voice). On 48 held-out examples: 3.7 dB of room removed (STUDIO 5.7), ViSQOL 4.00 (input
-  3.96, STUDIO 4.13), no more damage to the voice than STUDIO - with no delay. The Axell Signature Dojo's tracking
-  chain uses it.
-- **Axell's Dojo look**: the family emblem, a brush-written title with De-Reverb's seal (静, "stillness"), a deep-blue
-  ground.
-
-More screens: [LISTEN: REMOVED](docs/screenshots/dereverb-listen.png), [REDUCTION 75 %](docs/screenshots/dereverb-75pct.png).
-
-## What it does
 
 - **A trained network** runs on your CPU (no internet, nothing to install). It predicts, for every moment and
   frequency, how much of the sound is your voice and how much is the room. Below 4.5 kHz it also undoes the room with
@@ -72,7 +83,46 @@ More screens: [LISTEN: REMOVED](docs/screenshots/dereverb-listen.png), [REDUCTIO
 - **Any sample rate:** 44.1 to 96 kHz. The network runs at 48 kHz, with exact-latency resampling, and the band above
   it passes untouched.
 
-## Measured quality
+<table>
+<tr><td align="center" width="50%"><img src="docs/screenshots/dereverb-listen.png" alt="LISTEN: REMOVED - hear exactly what it takes out" width="100%"><br><sub>LISTEN: REMOVED - hear exactly what it takes out</sub></td><td align="center" width="50%"><img src="docs/screenshots/dereverb-75pct.png" alt="The compact size" width="100%"><br><sub>The compact size</sub></td></tr>
+</table>
+
+
+<br>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/type/h-new-dark.png">
+  <img alt="03 What's new - New in 4.0." src="docs/img/type/h-new-light.png" height="68">
+</picture>
+
+### What's new in 4.0
+
+- **TRUE TONE**: De-Reverb gives back the low end it used to take beyond the room's share, and the slight extra
+  brightness. It watches what it removes in each band and corrects the tone (at most +-3 dB, no latency). In rooms
+  like the artist's, the tone error against the real voice drops **38 %** (1.76 -> 1.09 dB at 100 %). On for new
+  instances and presets; projects from 3.x sound exactly as before (DECISIONS D18).
+- **Version in the header**, small and quiet after the title.
+
+### What's new in 3.0
+
+- **LIVE mode: zero latency, for recording.** STUDIO looks 32 ms ahead (53 ms latency) - for mixing. LIVE runs a
+  causal version of the network (fine-tuned from 2.0's) as a minimum-phase filter that changes every 10.7 ms (Axell
+  Velvet 3.0's method, now in the shared core), with an onset guard that keeps word starts intact (a room only decays,
+  so a sudden rise is the voice). On 48 held-out examples: 3.7 dB of room removed (STUDIO 5.7), ViSQOL 4.00 (input
+  3.96, STUDIO 4.13), no more damage to the voice than STUDIO - with no delay. The Axell Signature Dojo's tracking
+  chain uses it.
+- **Axell's Dojo look**: the family emblem, a brush-written title with De-Reverb's seal (静, "stillness"), a deep-blue
+  ground.
+
+More screens: [LISTEN: REMOVED](docs/screenshots/dereverb-listen.png), [REDUCTION 75 %](docs/screenshots/dereverb-75pct.png).
+
+
+<br>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/type/h-measured-dark.png">
+  <img alt="04 Measured - Every claim, measured." src="docs/img/type/h-measured-light.png" height="68">
+</picture>
 
 **Benchmark.** 3 voices it never heard (CMU ARCTIC), in 8 small-room types and 24 measured everyday rooms (MIT IR
 Survey, never trained on). Averages over all 48 examples:
@@ -140,7 +190,7 @@ Before the singing was added, dry held notes lost 11.6 dB and belting 9.6 dB.
 | LIVE: latency | 0 at 48 kHz; the resamplers' 2.6 ms at 44.1 kHz, 1.8 ms at 96 kHz |
 | LIVE vs STUDIO (48 held-out examples, 85 %) | room left -3.7 / -5.7 dB; ViSQOL 4.00 / 4.13; SRMR 6.26 / 6.50; voice damage -11.5 / -11.3 dB |
 | C++ = the trained model | -134 dB |
-| CPU (one core) | STUDIO 3.5 % stereo at 48 kHz, 3.8 % at 44.1 kHz; LIVE 4.8 % at 48 kHz; a mono vocal is half |
+| CPU (one core) | STUDIO 3.4 % stereo at 48 kHz, 3.9 % at 44.1 kHz; LIVE 4.6 % at 48 kHz; a mono vocal is half (4.0.1: 13 % less processing time through a host) |
 | Real-time safety | no allocation, lock or I/O in the audio path (allocation counter in the test suite) |
 
 All of these come from:
@@ -161,19 +211,31 @@ The reasoning behind every design choice is in [docs/DECISIONS.md](docs/DECISION
   singer. For a sung part, Gentle (60 %) is the safe choice.
 - Low room modes are only partly removed (in the bare room above, 80-150 Hz still rings after a phrase).
 
-## Engineering progress
 
-| Version | Date | Engineering | Measured (48 held-out examples, 85 %) |
-|---|---|---|---|
-| **1.0.0** | 2026-10-16 | A recurrent network (ERB gains + a complex deep filter below 4.5 kHz, 32 ms look-ahead) trained on 80 voices in 4,000 simulated small rooms (booths, closets, cars, bedrooms, bathrooms) + 7 measured rooms; 16 singers so held notes are not mistaken for a room; exact-latency resampling for any rate | ViSQOL 3.96 -> 4.11, room left -5.4 dB; WPE (the standard method) removes 0.2-1.8 dB; dry singing held notes: -11.6 dB before the singers were added, -2 dB after; the artist's blind A/B: preferred 4/4 |
-| **2.0.0** | 2026-10-17 | Rap and spoken word first: fine-tuned on dense takes (0-120 ms between phrases), 15 % singing, home rooms weighted | Regular speech: ViSQOL 4.13, CD 3.43, room left -5.7 dB (1.0: 4.11 / 3.45 / -5.4); dense takes better on every score; the artist's take: the room after each phrase -27.9 -> -37.8 dB |
-| **3.0.0** | 2026-10-26 | LIVE: a causal network (fine-tuned from 2.0) as a zero-latency minimum-phase filter per hop with an onset guard (Axell Velvet 3.0's method via the shared core); STUDIO / LIVE through the latency handshake; Axell's Dojo look | LIVE at 0 ms: room left -3.7 dB, ViSQOL 4.00, voice damage -11.5 dB (STUDIO -11.3); STUDIO unchanged (C++ = trained model to -134 dB); 45 DSP + 27 plugin checks, ASan clean, audit 21/21, pluginval L10, validator 47/47 |
-| **4.0.0** | 2026-10-27 | TRUE TONE: the plugin's own per-band removal -> a learned tone correction (per REDUCTION amount, +-3 dB, Studio and LIVE, no latency), trained on 1680 held-out-voice examples; version in the header | Unseen artist-like rooms: tone error 1.76 -> 1.09 dB (100 %), 1.23 -> 1.00 dB (85 %); synthetic rooms 1.92 -> 1.64 dB; 3.x projects render byte-identically; 59 DSP + 34 plugin checks, ASan clean, audit 21/21, pluginval L10, validator 47/47 |
-| **4.0.1** | 2026-11-15 | Faster shared FFT (inline complex products) | Output byte-identical to 4.0.0 (48 renders: 3 presets + 20 random settings); processing time on a 60 s vocal 2.20 -> 1.91 s (-13 %) |
+<br>
 
-Every design decision with its measurement: [docs/DECISIONS.md](docs/DECISIONS.md); all changes: [CHANGELOG.md](CHANGELOG.md).
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/type/h-install-dark.png">
+  <img alt="05 Get it - Windows first. Linux too." src="docs/img/type/h-install-light.png" height="68">
+</picture>
 
-## Install (Linux)
+### Windows
+
+> [!TIP]
+> **The whole suite in one go:** the [Axell Signature Suite installer](https://github.com/zmardanian/axell-signature-dojo/releases/latest) puts every Axell plugin and the Dojo on Windows 10 / 11 in one step, each one optional - and the Dojo keeps them up to date. Every VST3 host loads them: FL Studio, Ableton Live, Cubase, Studio One, Bitwig, REAPER.
+
+Windows 10 / 11, 64-bit. Download `AxellDeReverb-<version>-windows-x64.tar.gz` from the
+[latest release](https://github.com/zmardanian/axell-dereverb/releases/latest) (optional: check it against `SHA256SUMS.txt`),
+extract it (Windows 11 opens .tar.gz directly; on Windows 10 use 7-Zip or `tar -xzf` in a terminal) and copy the folder
+`Axell De-Reverb.vst3` into `C:\Program Files\Common Files\VST3`. Then rescan plugins in your DAW.
+Or install the whole suite in one go with the Axell Signature Suite installer from the
+[Axell Signature Dojo releases](https://github.com/zmardanian/axell-signature-dojo/releases/latest) - the Dojo then keeps it up to date.
+
+Every Windows build is made by GitHub Actions from this repository, passes the same test suites and pluginval
+(strictness 10) as the Linux build, and is checked to sound the same as it (largest difference far below -90 dBFS,
+most often bit-identical). The plugin is not code-signed yet; DAWs load it directly.
+
+### Linux
 
 Download `AxellDeReverb-4.0.1-linux-x86_64.tar.gz` from the
 [latest release](https://github.com/zmardanian/axell-dereverb/releases/latest) (optional: `sha256sum -c SHA256SUMS.txt`),
@@ -188,20 +250,77 @@ Or let the [Axell Signature Dojo](https://github.com/zmardanian/axell-signature-
 Then in REAPER: Options > Preferences > Plug-ins > VST > Re-scan.
 
 
-## Install (Windows)
+<br>
 
-Windows 10 / 11, 64-bit. Download `AxellDeReverb-<version>-windows-x64.tar.gz` from the
-[latest release](https://github.com/zmardanian/axell-dereverb/releases/latest) (optional: check it against `SHA256SUMS.txt`),
-extract it (Windows 11 opens .tar.gz directly; on Windows 10 use 7-Zip or `tar -xzf` in a terminal) and copy the folder
-`Axell De-Reverb.vst3` into `C:\Program Files\Common Files\VST3`. Then rescan plugins in your DAW.
-Or install the whole suite in one go with the Axell Signature Suite installer from the
-[Axell Signature Dojo releases](https://github.com/zmardanian/axell-signature-dojo/releases/latest) - the Dojo then keeps it up to date.
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/type/h-history-dark.png">
+  <img alt="06 Version history - Every version, earned." src="docs/img/type/h-history-light.png" height="68">
+</picture>
 
-Every Windows build is made by GitHub Actions from this repository, passes the same test suites and pluginval
-(strictness 10) as the Linux build, and is checked to sound the same as it (largest difference far below -90 dBFS,
-most often bit-identical). The plugin is not code-signed yet; DAWs load it directly.
+| Version | Date | Engineering | Measured (48 held-out examples, 85 %) |
+|---|---|---|---|
+| **1.0.0** | 2026-10-16 | A recurrent network (ERB gains + a complex deep filter below 4.5 kHz, 32 ms look-ahead) trained on 80 voices in 4,000 simulated small rooms (booths, closets, cars, bedrooms, bathrooms) + 7 measured rooms; 16 singers so held notes are not mistaken for a room; exact-latency resampling for any rate | ViSQOL 3.96 -> 4.11, room left -5.4 dB; WPE (the standard method) removes 0.2-1.8 dB; dry singing held notes: -11.6 dB before the singers were added, -2 dB after; the artist's blind A/B: preferred 4/4 |
+| **2.0.0** | 2026-10-17 | Rap and spoken word first: fine-tuned on dense takes (0-120 ms between phrases), 15 % singing, home rooms weighted | Regular speech: ViSQOL 4.13, CD 3.43, room left -5.7 dB (1.0: 4.11 / 3.45 / -5.4); dense takes better on every score; the artist's take: the room after each phrase -27.9 -> -37.8 dB |
+| **3.0.0** | 2026-10-26 | LIVE: a causal network (fine-tuned from 2.0) as a zero-latency minimum-phase filter per hop with an onset guard (Axell Velvet 3.0's method via the shared core); STUDIO / LIVE through the latency handshake; Axell's Dojo look | LIVE at 0 ms: room left -3.7 dB, ViSQOL 4.00, voice damage -11.5 dB (STUDIO -11.3); STUDIO unchanged (C++ = trained model to -134 dB); 45 DSP + 27 plugin checks, ASan clean, audit 21/21, pluginval L10, validator 47/47 |
+| **4.0.0** | 2026-10-27 | TRUE TONE: the plugin's own per-band removal -> a learned tone correction (per REDUCTION amount, +-3 dB, Studio and LIVE, no latency), trained on 1680 held-out-voice examples; version in the header | Unseen artist-like rooms: tone error 1.76 -> 1.09 dB (100 %), 1.23 -> 1.00 dB (85 %); synthetic rooms 1.92 -> 1.64 dB; 3.x projects render byte-identically; 59 DSP + 34 plugin checks, ASan clean, audit 21/21, pluginval L10, validator 47/47 |
+| **4.0.1** | 2026-11-15 | Faster shared FFT (inline complex products) | Output byte-identical to 4.0.0 (48 renders: 3 presets + 20 random settings); processing time on a 60 s vocal 2.20 -> 1.91 s (-13 %) |
 
-## Build (Bazzite / any Linux, inside a distrobox)
+Every design decision with its measurement: [docs/DECISIONS.md](docs/DECISIONS.md); all changes: [CHANGELOG.md](CHANGELOG.md).
+
+
+<br>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/type/h-suite-dark.png">
+  <img alt="07 The suite - Nine plugins, one core." src="docs/img/type/h-suite-light.png" height="68">
+</picture>
+
+<p align="center">
+<table>
+<tr><td align="center"><a href="https://github.com/zmardanian/axell-penta-eq"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/suite/penta-eq-dark.png">
+  <img alt="Penta EQ" src="docs/img/suite/penta-eq-light.png" width="120">
+</picture></a><br><sub>analog-matched EQ</sub></td><td align="center"><a href="https://github.com/zmardanian/axell-duo-compressor"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/suite/duo-compressor-dark.png">
+  <img alt="Duo Compressor" src="docs/img/suite/duo-compressor-light.png" width="120">
+</picture></a><br><sub>FET + opto + limiter</sub></td><td align="center"><a href="https://github.com/zmardanian/axell-gate"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/suite/gate-dark.png">
+  <img alt="Gate" src="docs/img/suite/gate-light.png" width="120">
+</picture></a><br><sub>voice-aware gate</sub></td><td align="center"><a href="https://github.com/zmardanian/axell-dereverb"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/suite/dereverb-dark.png">
+  <img alt="De-Reverb" src="docs/img/suite/dereverb-light.png" width="120">
+</picture></a><br><sub>small-room de-reverb</sub></td><td align="center"><a href="https://github.com/zmardanian/axell-velvet"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/suite/velvet-dark.png">
+  <img alt="Velvet" src="docs/img/suite/velvet-light.png" width="120">
+</picture></a><br><sub>neural de-esser + warmth</sub></td></tr>
+<tr><td align="center"><a href="https://github.com/zmardanian/axell-master"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/suite/master-dark.png">
+  <img alt="Master" src="docs/img/suite/master-light.png" width="120">
+</picture></a><br><sub>mastering limiter</sub></td><td align="center"><a href="https://github.com/zmardanian/axell-space"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/suite/space-dark.png">
+  <img alt="Space" src="docs/img/suite/space-light.png" width="120">
+</picture></a><br><sub>vocal reverb + delay</sub></td><td align="center"><a href="https://github.com/zmardanian/axell-forbidden-seal"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/suite/forbidden-seal-dark.png">
+  <img alt="Forbidden Seal" src="docs/img/suite/forbidden-seal-light.png" width="120">
+</picture></a><br><sub>saturation</sub></td><td align="center"><a href="https://github.com/zmardanian/axell-76"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/suite/76-dark.png">
+  <img alt="76" src="docs/img/suite/76-light.png" width="120">
+</picture></a><br><sub>1176 FET compressor</sub></td><td align="center"><a href="https://github.com/zmardanian/axell-signature-dojo"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/suite/signature-dojo-dark.png">
+  <img alt="Signature Dojo" src="docs/img/suite/signature-dojo-light.png" width="120">
+</picture></a><br><sub>the suite's home</sub></td></tr>
+</table>
+</p>
+
+Nine plugins and their home, built as one family: they share a core library, so a breakthrough in one becomes a feature of the next - the sibilance network of Velvet guards the esses in Duo, Master, Space and Forbidden Seal; Gate's voice detector holds Duo's and Master's gain through your pauses. The [Axell Signature Dojo](https://github.com/zmardanian/axell-signature-dojo) installs, updates and tunes the whole suite to your voice - on Windows from a single installer.
+
+
+<br>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/type/h-build-dark.png">
+  <img alt="08 Build from source - For developers." src="docs/img/type/h-build-light.png" height="68">
+</picture>
 
     bash scripts/setup-toolbox.sh
     bash scripts/build.sh
@@ -213,10 +332,19 @@ The DSP lives in JUCE-free headers (`Source/DRNet.h`, `Engine.h`, `Resampler.h`,
 core in `external/axell-core` or `../axell-core`). The network is trained by `research/train_dr.py` and exported by
 `research/export_dr.py` to `Resources/dereverb.bin`, which is embedded in the plugin.
 
-## Contact
+
+<br>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/type/h-credits-dark.png">
+  <img alt="09 Credits & contact - Credits & contact." src="docs/img/type/h-credits-light.png" height="68">
+</picture>
 
 Axell Yobag - axellpetre@protonmail.com. Issues on GitHub are welcome too.
 
 Licence: GNU AGPLv3 (`LICENSE`); third-party components and the data notices in `THIRD_PARTY_NOTICES.md` (VCTK,
 BUT ReverbDB and VocalSet for training; CMU ARCTIC, the MIT IR Survey and 4 VocalSet singers for evaluation). No
 code, data or graphics of any commercial product are used.
+
+
+<br>
