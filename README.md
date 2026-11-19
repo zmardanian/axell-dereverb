@@ -354,3 +354,5 @@ code, data or graphics of any commercial product are used.
 
 
 <br>
+
+<sub>VST is a registered trademark of Steinberg Media Technologies GmbH. 1176, 1176LN, LA-2A, UADx and Universal Audio are trademarks of their respective owners. The Axell plugins are independent works, not affiliated with or endorsed by them; the names only describe what was measured and compared.</sub>
