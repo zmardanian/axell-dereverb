@@ -35,7 +35,7 @@ set_target_properties(AxDRWeights PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 juce_add_plugin(AxellDeReverb
   COMPANY_NAME              "Axell Yobag"
-  COMPANY_EMAIL             "axellpetre@protonmail.com"
+  COMPANY_EMAIL             "contact@axellsdojo.com"
   BUNDLE_ID                 com.axellyobag.axelldereverb
   PLUGIN_MANUFACTURER_CODE  Axyb
   PLUGIN_CODE               Drv1

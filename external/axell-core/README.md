@@ -17,4 +17,4 @@ Shared code of the Axell plugins and the Axell Signature Dojo (Axell's Dojo):
   spectrum, limiter ceilings and release behaviour, latency handshake, sibilance and voice decisions.
 
 Licence: GNU AGPLv3 (LICENSE). Fonts: Inter and Yuji Syuku (a subset, `BrushFontData.h`; Copyright 2021 The Yuji
-Project Authors), both SIL Open Font License 1.1 (resources/fonts). Contact: axellpetre@protonmail.com
+Project Authors), both SIL Open Font License 1.1 (resources/fonts). Contact: contact@axellsdojo.com

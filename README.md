@@ -346,7 +346,7 @@ core in `external/axell-core` or `../axell-core`). The network is trained by `re
 **Free forever, kept alive by you.** Axell De-Reverb costs nothing and never will - no subscriptions, no licence keys. If it has earned a place in your mixes, you can [support the Dojo on Ko-fi](https://ko-fi.com/axellyobag) - one-time or monthly, from €3.
 
 
-Axell Yobag - axellpetre@protonmail.com. Issues on GitHub are welcome too.
+Axell Yobag - contact@axellsdojo.com. Issues on GitHub are welcome too.
 
 Licence: GNU AGPLv3 (`LICENSE`); third-party components and the data notices in `THIRD_PARTY_NOTICES.md` (VCTK,
 BUT ReverbDB and VocalSet for training; CMU ARCTIC, the MIT IR Survey and 4 VocalSet singers for evaluation). No
