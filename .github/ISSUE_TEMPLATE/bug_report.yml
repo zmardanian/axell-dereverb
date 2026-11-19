@@ -1,0 +1,54 @@
+name: Bug report
+description: Something in Axell De-Reverb doesn't work or sounds wrong
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time! For a **security** problem, please use [a private report](https://github.com/zmardanian/axell-dereverb/security/advisories/new) instead.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Axell De-Reverb version (shown in the plugin window or the Dojo)
+      placeholder: e.g. 4.0.1
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows 11
+        - Windows 10
+        - Linux
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: host
+    attributes:
+      label: DAW / host and its version
+      placeholder: e.g. REAPER 7.30, FL Studio 2025, Bitwig 5.3
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. ...
+        2. ...
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Screenshots, sample rate and buffer size, a crash log. Please don't attach recordings you don't want public.

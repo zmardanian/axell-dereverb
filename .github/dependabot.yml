@@ -1,0 +1,10 @@
+version: 2
+updates:
+  # keeps the SHA-pinned GitHub Actions current (pull requests, never automatic merges)
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]

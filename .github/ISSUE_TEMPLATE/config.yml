@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security problem (private)
+    url: https://github.com/zmardanian/axell-dereverb/security/advisories/new
+    about: Report a vulnerability privately - please not as a public issue.
+  - name: Website, downloads and manuals
+    url: https://www.axellsdojo.com
+    about: Every plugin, its download and its documentation.

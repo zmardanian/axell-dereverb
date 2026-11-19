@@ -1,0 +1,16 @@
+name: Idea or feature request
+description: Suggest something that would make Axell De-Reverb better
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: Your idea
+      description: What would you like, and what would it help you do?
+    validations:
+      required: true
+  - type: textarea
+    id: now
+    attributes:
+      label: How do you do it today?
+      description: Optional - another tool, a workaround, nothing yet.
