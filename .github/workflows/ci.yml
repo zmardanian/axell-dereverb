@@ -29,7 +29,7 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: System packages (Linux; the same list as scripts/setup-toolbox.sh)
@@ -80,7 +80,7 @@ jobs:
       - name: pluginval with the JUCE run-loop fix (Linux, cached)
         if: runner.os == 'Linux'
         id: pvcache
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: pv-fixed
           key: pluginval-1.0.4-axellfix-${{ hashFiles('**/JuceFixes.cmake') }}
@@ -123,18 +123,18 @@ jobs:
           if command -v cygpath >/dev/null; then HOST=$(cygpath -m "$HOST"); VST3=$(cygpath -m "$VST3"); fi   # native Windows paths for Python
           export AXELL_AUDIT_HOST="$HOST" AXELL_VST3="$VST3" PENTA_AUDIT_HOST="$HOST" PENTA_VST3="$VST3" DUO_AUDIT_HOST="$HOST" DUO_VST3="$VST3"
           $RUN $PY tests/independent/dr_audit.py 2>&1 | tee reports/audit-$RUNNER_OS.txt
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: reports-${{ runner.os }}
           path: reports/
           retention-days: 30
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: match-${{ runner.os }}
           path: match/default.f32
           retention-days: 3
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: runner.os == 'Windows'
         with:
           name: AxellDeReverb-windows-vst3
@@ -144,10 +144,10 @@ jobs:
     needs: build-and-test
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: match-*
       - name: Linux and Windows renders match
