@@ -1,5 +1,23 @@
 # Changelog
 
+## 4.0.3 - 2026-11-20
+- **Fixed: on stereo material one side could lose much more than the other, so the voice drifted - usually to the
+  left, with the right side cut.** Each channel had its own network deciding alone, and the network is sensitive:
+  two channels that differ a little (two mics, a stereo room, a wide double - even one channel with its polarity
+  flipped) got different decisions. Measured on a stereo vocal in a bedroom at the default preset: the right channel
+  came out 5.6 dB quieter than the left, from a perfectly balanced input.
+- **New: STEREO LINK (always on, nothing to set).** Both networks still listen to their own channel, but their
+  filters are joined into one - per frequency bin, each channel's gains, deep-filter taps and mix weighted by that
+  channel's power - and that one filter processes both channels. The room comes out the same on both sides and every
+  part of the voice stays where it was in the stereo image. Same clip: 5.6 -> 1.2 dB (what remains is the two sides'
+  genuinely different room); a channel with its polarity flipped now comes out exactly mirrored (it was up to 3 dB
+  off). The room removed is unchanged (7.7 -> 8.4 dB on that clip; 4.2 -> 4.3 and 10.9 -> 11.0 on two others). LIVE
+  links its zero-latency filter and its onset guard the same way.
+- **Mono and identical-channel material sound exactly as before**: a mono track, or a mono vocal on a stereo track,
+  renders bit-for-bit as in 4.0.2 (tested); on the artist's ten takes the difference is below -132 dB.
+- Verified: DSP 75 checks (16 new for the stereo link) + plugin 34, ASan + UBSan clean, quality audit 21/21,
+  pluginval strictness 10, VST3 validator 47/47.
+
 ## 4.0.2 - 2026-11-20
 - **The name in the suite's script wordmark.** The title now reads "Axell De-Reverb" in Great Vibes, in the plugin's own
   colour - the same wordmark as axellsdojo.com and the READMEs (SIL Open Font License; credited in THIRD_PARTY_NOTICES.md).

@@ -385,6 +385,73 @@ int main (int argc, char** argv)
             check ("TRUE TONE: no memory allocation in process() (44.1 kHz, random blocks)" + M, (double) allocCount, 0, 0, "allocs");
         }
     }
+    // 9. 4.0.3 STEREO LINK: a voice whose two channels hear different rooms (two mics) stays where it is in the stereo
+    //    image - before 4.0.3 each channel's network decided alone and one side could lose 5-6 dB more
+    {
+        Weights WL3;
+        auto wl = readFile ("Resources/dereverb_live.bin");
+        WL3.load (wl.data(), wl.size());
+        const int fs0 = 48000;
+        const size_t n = (size_t) fs0 * 6;
+        std::vector<float> v (n, 0.0f);
+        double ph = 0.0;
+        for (size_t i = 0; i < n; ++i)
+        {
+            const double t = (double) i / fs0, f0 = 140.0 + 60.0 * std::sin (2 * M_PI * 0.4 * t);
+            ph += 2 * M_PI * f0 / fs0;
+            double s = 0.0;
+            for (int k = 1; k <= 20; ++k)
+                s += std::sin (k * ph) / k;
+            v[i] = (float) (0.1 * s * std::max (0.0, std::sin (2 * M_PI * 2.2 * t)));
+        }
+        std::array<std::vector<float>, 2> x;
+        for (int c = 0; c < 2; ++c)
+        {
+            // the same room heard by two mics: its own tail on each side (independent noise), equal decay
+            std::mt19937 rr ((unsigned) (11 + c));
+            std::normal_distribution<float> nn;
+            std::vector<float> h ((size_t) (0.4 * fs0));
+            for (size_t i = 0; i < h.size(); ++i)
+                h[i] = (i == 0 ? 1.0f : 0.25f * nn (rr)) * (float) std::exp (-6.9 * (double) i / (0.4 * fs0));
+            x[(size_t) c].assign (n, 0.0f);
+            for (size_t i = 0; i < n; ++i)
+                for (size_t j = 0; j < h.size() && j <= i; j += 7)
+                    x[(size_t) c][i] += v[i - j] * h[j] * (j == 0 ? 1.0f : 2.6f);
+        }
+        auto lvl = [] (const std::vector<float>& a) { double e = 0; for (float s : a) e += (double) s * s; return e; };
+        const double inBal = std::abs (db (lvl (x[0]), lvl (x[1])));
+        std::vector<float> neg (x[0]);
+        for (auto& s : neg)
+            s = -s;
+        for (int live = 0; live < 2; ++live)
+            for (int fs : { 48000, 44100 })
+            {
+                const Weights& WW = live ? WL3 : W;
+                const std::string M = std::string (live ? " (LIVE, " : " (Studio, ") + std::to_string (fs) + " Hz)";
+                // the test signal is defined at 48 kHz; at 44.1 kHz it plays slower: a longer room, ~10 dB taken out, and
+                // what is left is mostly each side's own (different) tail - 4.0.2 drifted 3.8 dB there, linked 1.3 dB
+                for (bool tt : { false, true })
+                {
+                    auto y = render (WW, fs, { x[0], x[1] }, 0.85f, false, nullptr, 2048, false, false, tt);
+                    check ("STEREO LINK: two rooms, the image stays (|L - R| out minus |L - R| in)" + M + (tt ? " TRUE TONE" : ""),
+                           std::abs (db (lvl (y[0]), lvl (y[1]))) - inBal, -1.5, 1.5, "dB");
+                }
+                auto m = render (WW, fs, { x[0], neg }, 1.0f, false);
+                double e = 0, r = 0;
+                for (size_t i = 0; i < n; ++i)
+                {
+                    e += (double) (m[0][i] + m[1][i]) * (m[0][i] + m[1][i]);
+                    r += (double) m[0][i] * m[0][i];
+                }
+                check ("STEREO LINK: right = -left in -> right = -left out (error re the output)" + M, db (e, r), -400, -100, "dB");
+                auto s = render (WW, fs, { x[0] }, 0.85f, false, nullptr, 2048, false, false, true);
+                auto d = render (WW, fs, { x[0], x[0] }, 0.85f, false, nullptr, 2048, false, false, true);
+                double dm = 0;
+                for (size_t i = 0; i < n; ++i)
+                    dm = std::max ({ dm, (double) std::abs (d[0][i] - s[0][i]), (double) std::abs (d[1][i] - s[0][i]) });
+                check ("STEREO LINK: the same signal on both channels = the mono result, bit for bit (max difference)" + M, dm, 0, 0, "");
+            }
+    }
     // 7. CPU: 48 kHz stereo and 44.1 kHz stereo, % of one core
     if (! quick)
         for (int fs : { 48000, 44100 })

@@ -98,6 +98,12 @@ The de-reverb of the Axell suite. It removes the room from a close vocal:
   <img alt="03 What's new - New in 4.0." src="docs/img/type/h-new-light.png" height="68">
 </picture>
 
+### What's new in 4.0.3
+
+- **STEREO LINK - the voice stays centred.** On stereo material each channel used to be judged on its own, and one
+  side could lose much more room than the other (5.6 dB measured, the right side quieter). Now both channels share
+  one filter: the stereo image stays exactly where it was. Mono material sounds bit-for-bit as before (DECISIONS D20).
+
 ### What's new in 4.0
 
 - **TRUE TONE**: De-Reverb gives back the low end it used to take beyond the room's share, and the slight extra
@@ -242,12 +248,12 @@ most often bit-identical). The plugin is not code-signed yet; DAWs load it direc
 
 Runs on x86_64 Linux with glibc 2.35 or newer: Ubuntu 22.04+, Debian 12+, Linux Mint 21+, Fedora 36+, Arch, Bazzite.
 
-Download `AxellDeReverb-4.0.2-linux-x86_64.tar.gz` from the
+Download `AxellDeReverb-4.0.3-linux-x86_64.tar.gz` from the
 [latest release](https://github.com/zmardanian/axell-dereverb/releases/latest) (optional: `sha256sum -c SHA256SUMS.txt`),
 then:
 
-    tar xzf AxellDeReverb-4.0.2-linux-x86_64.tar.gz
-    cd AxellDeReverb-4.0.2-linux-x86_64
+    tar xzf AxellDeReverb-4.0.3-linux-x86_64.tar.gz
+    cd AxellDeReverb-4.0.3-linux-x86_64
     ./install.sh
 
 Or let the [Axell Signature Dojo](https://github.com/zmardanian/axell-signature-dojo) install and update it.
@@ -270,6 +276,7 @@ Then in REAPER: Options > Preferences > Plug-ins > VST > Re-scan.
 | **4.0.0** | 2026-10-27 | TRUE TONE: the plugin's own per-band removal -> a learned tone correction (per REDUCTION amount, +-3 dB, Studio and LIVE, no latency), trained on 1680 held-out-voice examples; version in the header | Unseen artist-like rooms: tone error 1.76 -> 1.09 dB (100 %), 1.23 -> 1.00 dB (85 %); synthetic rooms 1.92 -> 1.64 dB; 3.x projects render byte-identically; 59 DSP + 34 plugin checks, ASan clean, audit 21/21, pluginval L10, validator 47/47 |
 | **4.0.1** | 2026-11-15 | Faster shared FFT (inline complex products) | Output byte-identical to 4.0.0 (48 renders: 3 presets + 20 random settings); processing time on a 60 s vocal 2.20 -> 1.91 s (-13 %) |
 | **4.0.2** | 2026-11-20 | Script wordmark title; the factory preset (Program) is kept with the project; every control named for screen readers | Audio byte-identical to 4.0.1 (88 renders); pluginval 2.0 L10 with the real-time check |
+| **4.0.3** | 2026-11-20 | STEREO LINK: the two channels' networks joined into one filter per frame (gains, deep-filter taps, mix weighted by channel power); LIVE and its onset guard linked too | Stereo image error on a bedroom vocal 5.6 -> 1.2 dB, room removed unchanged; mono / identical channels bit-identical to 4.0.2; 75 DSP + 34 plugin checks |
 
 Every design decision with its measurement: [docs/DECISIONS.md](docs/DECISIONS.md); all changes: [CHANGELOG.md](CHANGELOG.md).
 

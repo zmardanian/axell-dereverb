@@ -40,7 +40,7 @@ PASS  LIVE: processed + removed (LISTEN) = the input (error re the input) @ 96.0
 PASS  LIVE: output finite and bounded (max |y|) @ 96.0 kHz                                                       0.3753   [0 .. 1]
 PASS  LIVE: silence in -> silence out (max |y|) @ 96.0 kHz                                                       0.0000   [0 .. 0]
 PASS  LIVE: no memory allocation in process() (44.1 / 48 kHz, random blocks)                                     0.0000 allocs  [0 .. 0]
-PASS  LIVE: CPU, stereo @ 48000 Hz (% of one core)                                                               4.5244 %  [0 .. 30]
+PASS  LIVE: CPU, stereo @ 48000 Hz (% of one core)                                                               4.5916 %  [0 .. 30]
 PASS  TRUE TONE: blocks of 512 vs random 1-2048 (max difference) (Studio)                                        0.0000   [0 .. 1e-06]
 PASS  TRUE TONE: the correction stays within +-3 dB (largest band, after 8 s) (Studio)                           3.0000 dB  [0 .. 3.0001]
 PASS  TRUE TONE: output peak re the input's on a voice in a room (Studio)                                        0.7767 x  [0 .. 1.5]
@@ -55,9 +55,25 @@ PASS  TRUE TONE: silence in -> silence out (max |y|) (LIVE)                     
 PASS  TRUE TONE: REDUCTION 0 is still the input (error re the input) (LIVE)                                   -349.9918 dB  [-400 .. -120]
 PASS  TRUE TONE: LISTEN - processed + removed = the input (error re the input) (LIVE)                         -154.7328 dB  [-400 .. -110]
 PASS  TRUE TONE: no memory allocation in process() (44.1 kHz, random blocks) (LIVE)                              0.0000 allocs  [0 .. 0]
-PASS  CPU, stereo @ 48000 Hz (% of one core)                                                                     3.3180 %  [0 .. 25]
-PASS  CPU, stereo @ 44100 Hz (% of one core)                                                                     3.7928 %  [0 .. 25]
-ALL PASS: 59 of 59 checks passed (8.6 s)
+PASS  STEREO LINK: two rooms, the image stays (|L - R| out minus |L - R| in) (Studio, 48000 Hz)                 -0.2375 dB  [-1.5 .. 1.5]
+PASS  STEREO LINK: two rooms, the image stays (|L - R| out minus |L - R| in) (Studio, 48000 Hz) TRUE TONE       -0.0259 dB  [-1.5 .. 1.5]
+PASS  STEREO LINK: right = -left in -> right = -left out (error re the output) (Studio, 48000 Hz)             -339.4456 dB  [-400 .. -100]
+PASS  STEREO LINK: the same signal on both channels = the mono result, bit for bit (max difference) (Studio, 48000 Hz)       0.0000   [0 .. 0]
+PASS  STEREO LINK: two rooms, the image stays (|L - R| out minus |L - R| in) (Studio, 44100 Hz)                  1.2915 dB  [-1.5 .. 1.5]
+PASS  STEREO LINK: two rooms, the image stays (|L - R| out minus |L - R| in) (Studio, 44100 Hz) TRUE TONE        1.2890 dB  [-1.5 .. 1.5]
+PASS  STEREO LINK: right = -left in -> right = -left out (error re the output) (Studio, 44100 Hz)             -333.9920 dB  [-400 .. -100]
+PASS  STEREO LINK: the same signal on both channels = the mono result, bit for bit (max difference) (Studio, 44100 Hz)       0.0000   [0 .. 0]
+PASS  STEREO LINK: two rooms, the image stays (|L - R| out minus |L - R| in) (LIVE, 48000 Hz)                   -0.0136 dB  [-1.5 .. 1.5]
+PASS  STEREO LINK: two rooms, the image stays (|L - R| out minus |L - R| in) (LIVE, 48000 Hz) TRUE TONE         -0.1152 dB  [-1.5 .. 1.5]
+PASS  STEREO LINK: right = -left in -> right = -left out (error re the output) (LIVE, 48000 Hz)               -343.4600 dB  [-400 .. -100]
+PASS  STEREO LINK: the same signal on both channels = the mono result, bit for bit (max difference) (LIVE, 48000 Hz)       0.0000   [0 .. 0]
+PASS  STEREO LINK: two rooms, the image stays (|L - R| out minus |L - R| in) (LIVE, 44100 Hz)                   -0.0426 dB  [-1.5 .. 1.5]
+PASS  STEREO LINK: two rooms, the image stays (|L - R| out minus |L - R| in) (LIVE, 44100 Hz) TRUE TONE         -0.1008 dB  [-1.5 .. 1.5]
+PASS  STEREO LINK: right = -left in -> right = -left out (error re the output) (LIVE, 44100 Hz)               -343.5394 dB  [-400 .. -100]
+PASS  STEREO LINK: the same signal on both channels = the mono result, bit for bit (max difference) (LIVE, 44100 Hz)       0.0000   [0 .. 0]
+PASS  CPU, stereo @ 48000 Hz (% of one core)                                                                     3.3283 %  [0 .. 25]
+PASS  CPU, stereo @ 44100 Hz (% of one core)                                                                     3.5923 %  [0 .. 25]
+ALL PASS: 75 of 75 checks passed (14.6 s)
 PASS  parameter count = 5
 PASS  parameter 0 is 'reduction'
 PASS  parameter 1 is 'listen'

@@ -1,12 +1,12 @@
-Random seed: 0x2baf0bd
+Random seed: 0x1676eb2
 Validation started
 Strictness level: 10
 -----------------------------------------------------------------
 Starting tests in: pluginval / Scan for plugins located in: ~/axell-dereverb/build/AxellDeReverb_artefacts/Release/VST3/Axell De-Reverb.vst3...
 Num plugins found: 1
 
-Testing plugin: VST3-Axell De-Reverb-3868f25b-80713a99
-Axell Yobag: Axell De-Reverb v3.0.0
+Testing plugin: VST3-Axell De-Reverb-72cd7bf3-80713a99
+Axell Yobag: Axell De-Reverb v4.0.3
 Completed tests in pluginval / Scan for plugins located in: ~/axell-dereverb/build/AxellDeReverb_artefacts/Release/VST3/Axell De-Reverb.vst3
 -----------------------------------------------------------------
 Starting tests in: pluginval / Open plugin (cold)...

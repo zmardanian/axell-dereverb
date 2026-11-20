@@ -325,3 +325,31 @@ multi-versioned; activations 9.5 %). Rule: byte-identical output.
 - **Rejected by measurement:** a hand-written fast exp/tanh for the activations (output -156 dBFS different and
   19 % slower: glibc's are faster); SIMD activations (would change the output and break the Linux/Windows match,
   for at most ~5 %).
+
+## D20 - 4.0.3: STEREO LINK (`Source/Engine.h`, `Source/DRNet.h`)
+Found by the artist on the website's stereo examples: the processed "Sung vocal in a bedroom" leaned left, its right
+side 6.4 dB down.
+- **Cause:** one network per channel, each deciding alone. The network is sensitive to small input details - one
+  channel with its polarity flipped got ~3 dB more or less removal - so two channels that differ a little (the
+  examples' bedroom was simulated with two mics 5 cm apart; correlation 0.48) were treated differently. Not the
+  resampler, the mix or the host: the 48 kHz engine alone reproduces it; each channel alone is processed correctly.
+- **Kept: one joined filter.** The network's frame was split into analyse() (network -> this frame's filter: gain
+  per bin, deep-filter taps, mix) and synth() (the filter applied to the channel's own spectrum history). Between
+  them the two filters are averaged per bin, weighted by each channel's power in the frame being produced, and both
+  channels get the result. LIVE: the same in its frame analysis (one minimum-phase response, two filters with
+  identical taps), and the onset guard opens on an onset in either channel.
+  - Website bedroom clips, 85 %, the real plugin at 44.1 kHz: image error 5.61 -> 1.18 dB (rnb), 0.24 -> 0.03
+    (trap), 0.30 -> 0.43 (boom bap; input 0.41); room removed 7.7 -> 8.4, 4.2 -> 4.3, 10.9 -> 11.0 dB.
+  - Test (DspTests 9): a voice in two rooms with independent tails, 4.0.2 drifted 3.8 dB at 44.1 kHz, now 1.3 dB;
+    right = -left now comes out exactly mirrored (-334 dB error; it was -14 to -25 dB).
+- **Rejected:**
+  - Linking only the magnitudes (each channel keeping its network's phase): R = -L only to -25 dB in STUDIO and
+    still 1.4 dB of drift - the deep filter's phases differ between the two networks.
+  - Equal weights: as good or slightly worse (rnb 0.39 vs 0.34 dB, boom bap 0.56 vs 0.34) and a silent channel would
+    pull its partner's filter.
+  - One network on the mid (L + R) / 2: cancels on anti-phase material (silence -> nothing processed) and hears a
+    drier room than either mic (uncorrelated tails add at -3 dB).
+- **Unchanged:** mono, and identical channels (a mono vocal on a stereo track): identical filters, skipped - bit for
+  bit as 4.0.2 (test). The artist's ten takes: -132 dB or less different. Parity with the trained model still
+  -134 dB. CPU unchanged (~4 % of one core, stereo).
+

@@ -1,3 +1,4 @@
+#include <cstdlib>
 // Axell De-Reverb - headless GUI snapshot: the real processor and editor, fed a reverberant voice-like signal (or a WAV
 // given as the second argument), saved as PNGs.   DrGuiSnapshot [outputDir] [vocal.wav]
 #include "../Source/PluginEditor.h"
@@ -60,6 +61,8 @@ int main (int argc, char** argv)
             for (int c = 0; c < 2; ++c)
                 buf.copyFrom (c, 0, voice, c, pos, 512);
             proc.processBlock (buf, midi);
+{ /* AXELL_VIDEO_DIR set: also save a frame every 3 blocks (~31 fps) for the website loops; first take only */ static void* axOwner = nullptr; static int axBlk = 0, axFr = 0; if (const char* axDir = std::getenv ("AXELL_VIDEO_DIR")) { if (axOwner == nullptr) axOwner = (void*) (ed.get()); if (axOwner != (void*) (ed.get()) || axFr >= 300) std::exit (0); if (++axBlk % 3 == 0) { juce::MessageManager::getInstance()->runDispatchLoopUntil (2); auto axIm = (ed.get())->createComponentSnapshot ((ed.get())->getLocalBounds(), true, 1.0f); juce::File axF = juce::File (axDir).getChildFile (juce::String::formatted ("f%05d.png", axFr++)); axF.deleteFile(); { juce::FileOutputStream axOs (axF); juce::PNGImageFormat().writeImageToStream (axIm, axOs); } } } }
+
             juce::MessageManager::getInstance()->runDispatchLoopUntil (1);
         }
         juce::MessageManager::getInstance()->runDispatchLoopUntil (100);

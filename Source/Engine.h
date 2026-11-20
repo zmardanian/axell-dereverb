@@ -1,7 +1,8 @@
 #pragma once
 // Axell De-Reverb - the engine (framework independent, no JUCE): streaming STFT (1024 / 512, sqrt-Hann analysis and
-// synthesis, 50 % overlap-add), the network per frame, inverse STFT. Mono detection path; each channel gets its own
-// network instance (a stereo vocal stays stereo). Latency: one frame (1024) + LA hops of look-ahead.
+// synthesis, 50 % overlap-add), the network per frame, inverse STFT. Each channel gets its own network instance (a
+// stereo vocal stays stereo); 4.0.3 STEREO LINK joins their filters into one per frame (link()). Latency: one frame
+// (1024) + LA hops of look-ahead.
 // 3.0 LIVE (weights with LA = 0, a causal network): no latency. Each hop the network's frame becomes a magnitude
 // response (|enhanced| / |input| per bin) and that a minimum-phase filter (axell-core MinPhase.h, Velvet 3.0 LIVE's
 // method), which filters the current input sample by sample and fades into the next one over a hop.
@@ -51,8 +52,10 @@ public:
         }
         frameIn.assign (kNfft, 0.0f);
         spec.assign (kNfft + 2, 0.0f);
-        X.assign (kNb, cf {});
-        Y.assign (kNb, cf {});
+        for (auto& v : Xc)
+            v.assign (kNb, cf {});
+        for (auto& v : Yc)
+            v.assign (kNb, cf {});
         timeOut.assign (kNfft, 0.0f);
         tone.prepare (kNb, kNfft, (double) kFs);
         reset();
@@ -109,6 +112,22 @@ public:
             // 1e-4: an -80 dB step, inaudible, and the mix then is exact (processed + removed = the input)
             if (std::abs (amt - amtTarget) < 1.0e-4f) amt = amtTarget;
             if (std::abs (lis - lisTarget) < 1.0e-4f) lis = lisTarget;
+            if (live)
+            {
+                // onset guard: a room only decays, so a level well above the last analysed frame's is direct sound the
+                // filter (from that frame) has not seen - let it through until the next frames catch up. 4.0.3: linked,
+                // an onset in either channel opens both (one channel alone would move the stereo image)
+                float tgt = 0.0f;
+                for (int c = 0; c < ch; ++c)
+                {
+                    const float x = std::isfinite (io[c][i]) ? std::clamp (io[c][i], -1000.0f, 1000.0f) : 0.0f;
+                    auto& e = onsetEnv[(size_t) c];
+                    e += (x * x - e) * onsetEnvK;
+                    if (e > onsetRatio * framePow[(size_t) c])
+                        tgt = 1.0f;
+                }
+                onsetW[0] += (tgt - onsetW[0]) * (tgt > onsetW[0] ? onsetAtkK : onsetRelK);
+            }
             for (int c = 0; c < ch; ++c)
             {
                 float& s = io[c][i];
@@ -118,14 +137,7 @@ public:
                 if (live)
                 {
                     wet = fir[(size_t) c].process (x);     // the current sample, filtered: no delay
-                    // onset guard: a room only decays, so a level well above the last analysed frame's is direct sound
-                    // the filter (from that frame) has not seen - let it through until the next frames catch up
-                    auto& e = onsetEnv[(size_t) c];
-                    e += (x * x - e) * onsetEnvK;
-                    auto& w = onsetW[(size_t) c];
-                    const float tgt = e > onsetRatio * framePow[(size_t) c] ? 1.0f : 0.0f;
-                    w += (tgt - w) * (tgt > w ? onsetAtkK : onsetRelK);
-                    wet += w * (x - wet);
+                    wet += onsetW[0] * (x - wet);
                 }
                 else
                 {
@@ -146,8 +158,7 @@ public:
             if (++fill == kHop)
             {
                 fill = 0;
-                for (int c = 0; c < ch; ++c)
-                    hop (c);
+                hopAll (ch);
                 if (trueTone)
                     tone.update (kNb, amt);
                 // meters, smoothed over ~0.5 s (hops of 10.7 ms)
@@ -165,15 +176,75 @@ public:
     }
 
 private:
+    // every channel's frame through its own network, the stereo link, then each channel out
+    void hopAll (int ch) noexcept
+    {
+        bool on[kMaxCh] {};
+        for (int c = 0; c < ch; ++c)
+        {
+            auto& ib = inBuf[(size_t) c];
+            for (int i = 0; i < kNfft; ++i)
+                frameIn[(size_t) i] = ib[(size_t) i] * win[(size_t) i];
+            fft.forward (frameIn.data(), spec.data());
+            auto& X = Xc[(size_t) c];
+            for (int k = 0; k < kNb; ++k)
+                X[(size_t) k] = cf (spec[(size_t) (2 * k)], spec[(size_t) (2 * k + 1)]);
+            on[c] = net[(size_t) c].analyse (X.data());
+        }
+        if (ch == 2 && on[0] && on[1])
+            link();
+        for (int c = 0; c < ch; ++c)
+        {
+            auto& Y = Yc[(size_t) c];
+            if (on[c])
+                net[(size_t) c].synth (Y.data());
+            else
+                std::fill (Y.begin(), Y.end(), cf {});
+            hop (c);
+        }
+    }
+
+    // 4.0.3 STEREO LINK. Each network judges its own channel, and the network is sensitive: two channels that differ a
+    // little (two mics, a stereo room, a wide double - even one channel with its polarity flipped) made different
+    // decisions, and the voice drifted to one side, by up to 6 dB measured. Now both networks still listen to their
+    // own channel, but their filters are joined into one - per bin, each channel's gain, deep-filter taps and mix
+    // weighted by that channel's power in the frame being produced - and that one filter processes both channels:
+    // the room comes out the same on both sides and every part of the spectrum stays where it was in the stereo
+    // image. A silent channel weighs nothing (a left-only signal is processed as before). Two identical channels (a
+    // mono source on a stereo track) have identical filters and are left exactly as before.
+    void link() noexcept
+    {
+        auto& A = net[0];
+        auto& B = net[1];
+        float *ga = A.gains(), *gb = B.gains(), *ma = A.dfMix(), *mb = B.dfMix();
+        cf *ta = A.dfTaps(), *tb = B.dfTaps();
+        constexpr int nt = kNdf * kDfOrder;
+        if (std::equal (ga, ga + kNb, gb) && std::equal (ma, ma + kNdf, mb) && std::equal (ta, ta + nt, tb))
+            return;
+        const cf *xa = A.delayedInput(), *xb = B.delayedInput();
+        for (int k = 0; k < kNb; ++k)
+        {
+            const float pa = std::norm (xa[k]), pb = std::norm (xb[k]), p = pa + pb;
+            const float wa = p > 1.0e-30f ? pa / p : 0.5f, wb = 1.0f - wa;
+            ga[k] = gb[k] = wa * ga[k] + wb * gb[k];
+            if (k < kNdf)
+            {
+                ma[k] = mb[k] = wa * ma[k] + wb * mb[k];
+                for (int i = 0; i < kDfOrder; ++i)
+                {
+                    cf& u = ta[k * kDfOrder + i];
+                    cf& v = tb[k * kDfOrder + i];
+                    u = v = wa * u + wb * v;
+                }
+            }
+        }
+    }
+
     void hop (int c) noexcept
     {
         auto& ib = inBuf[(size_t) c];
-        for (int i = 0; i < kNfft; ++i)
-            frameIn[(size_t) i] = ib[(size_t) i] * win[(size_t) i];
-        fft.forward (frameIn.data(), spec.data());
-        for (int k = 0; k < kNb; ++k)
-            X[(size_t) k] = cf (spec[(size_t) (2 * k)], spec[(size_t) (2 * k + 1)]);
-        net[(size_t) c].frame (X.data(), Y.data());
+        auto& X = Xc[(size_t) c];
+        auto& Y = Yc[(size_t) c];
         if (trueTone)
         {
             tone.observe (X.data(), Y.data(), kNb);   // what the network does, before the correction
@@ -211,6 +282,8 @@ private:
     // passes nothing there, which is no response)
     void liveFilter (int c) noexcept
     {
+        const auto& X = Xc[(size_t) c];
+        const auto& Y = Yc[(size_t) c];
         double pm = 0.0;
         for (int k = 0; k < kNb; ++k)
             pm += (double) std::norm (X[(size_t) k]);
@@ -262,6 +335,6 @@ private:
     std::array<Net, kMaxCh> net;
     std::array<std::vector<float>, kMaxCh> inBuf, outAcc, outQ;
     std::vector<float> frameIn, spec, timeOut;
-    std::vector<cf> X, Y;
+    std::array<std::vector<cf>, kMaxCh> Xc, Yc;
 };
 } // namespace axdr

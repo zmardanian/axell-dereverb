@@ -208,6 +208,17 @@ public:
     // one STFT frame in (input frame t), one frame out (the enhanced input frame t - LA)
     void frame (const cf* X, cf* Y) noexcept
     {
+        if (analyse (X))
+            synth (Y);
+        else
+            std::fill (Y, Y + kNb, cf {});
+    }
+
+    // 4.0.3 the frame in two steps, so a stereo link can join two channels' filters in between:
+    // analyse() runs the network on input frame t and turns its outputs into this frame's filter (coefficients below);
+    // false while the stream has not started (digital silence first: the output frame is silence, nothing is kept)
+    bool analyse (const cf* X) noexcept
+    {
         // digital silence (a DAW before the first take, a gate in front; training never had any): until the first
         // frame that is not silent the network stays as at the start (the stream effectively starts there), and
         // later silent frames do not move the running means. research/dr_model.py does the same.
@@ -218,14 +229,11 @@ public:
         if (first && silent)
         {
             reset();
-            std::fill (Y, Y + kNb, cf {});
-            return;
+            return false;
         }
         const bool track = first || ! silent;
         // keep the spectrum history (input frames t .. t - LA - DF_ORDER + 1)
-        const int HN = la + kDfOrder;
         std::copy (X, X + kNb, specHist.begin() + (size_t) histPos * kNb);
-        auto hist = [&] (int back) { return specHist.data() + (size_t) ((histPos - back + HN) % HN) * kNb; };
         // features of frame t
         float feat[kFeat];
         std::array<double, kNerb> ep {};
@@ -270,13 +278,24 @@ public:
             std::printf ("G"); for (int i = 0; i < kNerb; ++i) std::printf (" %.6g", g[(size_t) i]); std::printf ("\n");
         }
 #endif
-        // the frame being produced: input frame t - LA
+        for (int k = 0; k < kNb; ++k)
+            gain[(size_t) k] = 1.0f / (1.0f + std::exp (-g[(size_t) band[(size_t) k]]));
+        for (int k = 0; k < kNdf; ++k)
+        {
+            for (int i = 0; i < kDfOrder; ++i)
+                taps[(size_t) (k * kDfOrder + i)] = cf (std::tanh (df[(size_t) ((k * kDfOrder + i) * 2)]),
+                                                        std::tanh (df[(size_t) ((k * kDfOrder + i) * 2 + 1)]));
+            mix[(size_t) k] = 1.0f / (1.0f + std::exp (-amix[(size_t) k]));
+        }
+        return true;
+    }
+
+    // the filter applied: the enhanced input frame t - LA (after analyse() returned true)
+    void synth (cf* Y) noexcept
+    {
         const cf* Xd = hist (la);
         for (int k = 0; k < kNb; ++k)
-        {
-            const float gk = 1.0f / (1.0f + std::exp (-g[(size_t) band[(size_t) k]]));
-            Y[k] = Xd[k] * gk;
-        }
+            Y[k] = Xd[k] * gain[(size_t) k];
         for (int k = 0; k < kNdf; ++k)
         {
             cf s {};
@@ -284,20 +303,32 @@ public:
             {
                 // coefficient i multiplies frame (t - LA) - (ORDER - 1) + i  (oldest first)
                 const cf* Xi = hist (la + kDfOrder - 1 - i);
-                const float re = std::tanh (df[(size_t) ((k * kDfOrder + i) * 2)]);
-                const float im = std::tanh (df[(size_t) ((k * kDfOrder + i) * 2 + 1)]);
-                s += Xi[k] * cf (re, im);
+                s += Xi[k] * taps[(size_t) (k * kDfOrder + i)];
             }
-            const float a = 1.0f / (1.0f + std::exp (-amix[(size_t) k]));
+            const float a = mix[(size_t) k];
             Y[k] = a * s + (1.0f - a) * Y[k];
         }
-        histPos = (histPos + 1) % HN;
+        histPos = (histPos + 1) % (la + kDfOrder);
     }
+
+    // this frame's filter (valid after analyse() returned true): the gain per bin, the deep filter's complex taps
+    // (kDfOrder per bin, oldest frame first) and its mix per bin, for the lowest kNdf bins
+    float* gains() noexcept { return gain.data(); }
+    cf* dfTaps() noexcept { return taps.data(); }
+    float* dfMix() noexcept { return mix.data(); }
+    // the input frame the filter's output belongs to (t - LA), after analyse()
+    const cf* delayedInput() const noexcept { return hist (la); }
 
 #ifdef AXDR_DEBUG
     int dbgFrame = 40;
 #endif
 private:
+    const cf* hist (int back) const noexcept
+    {
+        const int HN = la + kDfOrder;
+        return specHist.data() + (size_t) ((histPos - back + HN) % HN) * kNb;
+    }
+
     static constexpr double kAlpha = 0.99;
     static constexpr double kSilentPower = 512.0 * 1.0e-13; // mean bin power of white noise at -130 dBFS (sqrt-Hann, 1024)
     const Weights* W = nullptr;
@@ -308,6 +339,9 @@ private:
     std::array<double, kNdf> u {};
     std::vector<float> ctx, xin, z0, z1, h1, h2, h2out, tmp, g, df, amix;
     std::vector<cf> specHist;
+    std::array<float, kNb> gain {};
+    std::array<cf, (size_t) kNdf * kDfOrder> taps {};
+    std::array<float, kNdf> mix {};
     int histPos = 0;
     bool first = true;
 };
