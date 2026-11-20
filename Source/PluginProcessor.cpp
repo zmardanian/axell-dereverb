@@ -270,6 +270,7 @@ void DeReverbProcessor::restoreTree (const juce::ValueTree& tree)
 void DeReverbProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
     auto state = apvts.copyState();
+    state.setProperty ("program", currentProgram, nullptr);   // the factory preset last chosen, so hosts see the same Program after a reload
     std::unique_ptr<juce::XmlElement> xml (state.createXml());
     copyXmlToBinary (*xml, destData);
 }
@@ -292,6 +293,10 @@ void DeReverbProcessor::setStateInformation (const void* data, int sizeInBytes)
         }
         else if (! t.hasProperty ("value"))
             t.setProperty ("value", 0.0f, nullptr);
+        // only the index: the parameters come from the state itself, the preset is not applied again
+        if (tree.hasProperty ("program"))
+            currentProgram = juce::jlimit (0, juce::jmax (0, getNumPrograms() - 1), (int) tree.getProperty ("program"));
+        tree.removeProperty ("program", nullptr);
         restoreTree (tree);
     }
 }

@@ -358,8 +358,12 @@ void Knob::bind (juce::AudioProcessorValueTreeState& apvts, const juce::String& 
     attachment.reset();
     attachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (apvts, paramId, slider);
     if (auto* p = apvts.getParameter (paramId))
+    {
         slider.setDoubleClickReturnValue (true, p->convertFrom0to1 (p->getDefaultValue()));
+        slider.setTitle (p->getName (64));   // what a screen reader announces (Narrator, VoiceOver)
+    }
     slider.setTooltip (tooltip);
+    slider.setDescription (tooltip);
     slider.onDragStart = std::move (onGestureStart);
 }
 
@@ -406,8 +410,13 @@ Segmented::Segmented (const juce::StringArray& labels, juce::Colour accent)
 void Segmented::bind (juce::RangedAudioParameter& p, const juce::String& tooltip, std::function<void()> onGestureStart)
 {
     gesture = std::move (onGestureStart);
+    setTitle (p.getName (64));   // screen readers: the group's name; each button reads its own label
+    setDescription (tooltip);
     for (auto* b : buttons)
+    {
         b->setTooltip (tooltip);
+        b->setDescription (p.getName (64));
+    }
     attachment = std::make_unique<juce::ParameterAttachment> (p, [this] (float v)
     {
         const int idx = juce::roundToInt (v);
@@ -449,7 +458,10 @@ void Toggle::bind (juce::AudioProcessorValueTreeState& apvts, const juce::String
 {
     attachment.reset();
     attachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (apvts, paramId, *this);
+    if (auto* p = apvts.getParameter (paramId))
+        setTitle (p->getName (64));   // screen readers
     setTooltip (tooltip);
+    setDescription (tooltip);
     gestureFn = std::move (onGestureStart);
 }
 
@@ -471,7 +483,10 @@ void Choice::bind (juce::AudioProcessorValueTreeState& apvts, const juce::String
     if (auto* p = dynamic_cast<juce::AudioParameterChoice*> (apvts.getParameter (paramId)))
         addItemList (p->choices, 1);
     attachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (apvts, paramId, *this);
+    if (auto* p = apvts.getParameter (paramId))
+        setTitle (p->getName (64));   // screen readers
     setTooltip (tooltip);
+    setDescription (tooltip);
     gestureFn = std::move (onGestureStart);
 }
 

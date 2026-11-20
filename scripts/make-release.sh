@@ -6,12 +6,12 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 VERSION=$(sed -n 's/^project(AxellDeReverb VERSION \([0-9.]*\)).*/\1/p' CMakeLists.txt)
 NAME="Axell De-Reverb"
-BUNDLE="build/AxellDeReverb_artefacts/Release/VST3/$NAME.vst3"
+BUNDLE="build-portable/AxellDeReverb_artefacts/Release/VST3/$NAME.vst3"
 OUTROOT="$HOME/axell-dereverb-release"
 PKG="AxellDeReverb-$VERSION-linux-x86_64"
 OUT="$OUTROOT/$PKG"
 
-[ -d "$BUNDLE" ] || { echo "No Release build. Run scripts/build.sh first."; exit 1; }
+[ -d "$BUNDLE" ] || { echo "No Release build. Run scripts/build-portable.sh first (tests run on scripts/build.sh)."; exit 1; }
 grep -q "\"Name\": \"$NAME\"" "$BUNDLE/Contents/Resources/moduleinfo.json" || { echo "moduleinfo.json does not name $NAME"; exit 1; }
 grep -q "\"Version\": \"$VERSION\"" "$BUNDLE/Contents/Resources/moduleinfo.json" || { echo "bundle version is not $VERSION"; exit 1; }
 
@@ -19,6 +19,16 @@ rm -rf "$OUT" "$OUTROOT/$PKG.tar.gz"
 mkdir -p "$OUT"
 cp -r "$BUNDLE" "$OUT/"
 strip --strip-unneeded "$OUT/$NAME.vst3/Contents/x86_64-linux/$NAME.so"
+check_portable() {
+# portability guard: the archive must run on Ubuntu 22.04 / Debian 12 (glibc 2.35, libstdc++ of gcc 12)
+need() { objdump -T "$1" | grep -oE "$2"'_[0-9.]+' | sed "s/$2_//" | sort -V | tail -n 1; }
+for so in "$@"; do
+  g=$(need "$so" GLIBC); x=$(need "$so" GLIBCXX)
+  [ "$(printf '%s\n2.35\n' "$g" | sort -V | tail -n 1)" = "2.35" ] || { echo "$so needs glibc $g (> 2.35): build with scripts/build-portable.sh"; exit 1; }
+  [ -z "$x" ] || [ "$(printf '%s\n3.4.30\n' "$x" | sort -V | tail -n 1)" = "3.4.30" ] || { echo "$so needs GLIBCXX $x (> 3.4.30): build with scripts/build-portable.sh"; exit 1; }
+done
+}
+check_portable "$OUT/$NAME.vst3/Contents/x86_64-linux/$NAME.so"
 cp LICENSE THIRD_PARTY_NOTICES.md "$OUT/"
 
 cat > "$OUT/install.sh" <<'EOS'
@@ -101,7 +111,7 @@ OUTPUT. Latency is reported to the host and compensated. 3 factory presets and A
 
 REQUIREMENTS
 ------------
-- x86_64 Linux with glibc 2.39 or newer (Bazzite, Fedora 40+, Ubuntu 24.04+)
+- x86_64 Linux with glibc 2.35 or newer (Ubuntu 22.04+, Debian 12+, Linux Mint 21+, Fedora 36+, Bazzite)
 - Any VST3 host. Tested in REAPER.
 - System libraries freetype and fontconfig (present on desktop distributions)
 

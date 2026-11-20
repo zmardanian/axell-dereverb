@@ -44,7 +44,7 @@ PASS  TRUE TONE: silence in -> silence out (max |y|) (LIVE)                     
 PASS  TRUE TONE: REDUCTION 0 is still the input (error re the input) (LIVE)                                   -348.5416 dB  [-400 .. -120]
 PASS  TRUE TONE: LISTEN - processed + removed = the input (error re the input) (LIVE)                         -154.4737 dB  [-400 .. -110]
 PASS  TRUE TONE: no memory allocation in process() (44.1 kHz, random blocks) (LIVE)                              0.0000 allocs  [0 .. 0]
-ALL PASS: 46 of 46 checks passed (136.3 s)
+ALL PASS: 46 of 46 checks passed (133.8 s)
 PASS  parameter count = 5
 PASS  parameter 0 is 'reduction'
 PASS  parameter 1 is 'listen'

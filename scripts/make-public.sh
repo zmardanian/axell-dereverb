@@ -43,7 +43,7 @@ if [ "$UPDATE" = 1 ]; then
   git -C "$FINAL" diff --quiet && git -C "$FINAL" diff --cached --quiet || { echo "$FINAL has uncommitted changes."; exit 1; }
   git -C "$FINAL" rev-parse -q --verify "refs/tags/v$VER" >/dev/null && { echo "tag v$VER already exists in $FINAL."; exit 1; }
   rsync -a --checksum --delete --exclude .git "$PUB/" "$FINAL/"   # --checksum: a same-size change (a version number) is never skipped; rm -rf "$(dirname "$PUB")"
-  cd "$FINAL"; git add -A; git commit -qm "Axell De-Reverb v$VER" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"; git tag "v$VER"
+  cd "$FINAL"; git add -A; git commit -qm "Axell De-Reverb v$VER"; git tag "v$VER"
   echo "Public repo updated: $FINAL (tag v$VER, NOT pushed)"; exit 0
 fi
 cd "$PUB"
@@ -51,7 +51,7 @@ git init -q -b main
 git config user.name "zmardanian"
 git config user.email "333182917+zmardanian@users.noreply.github.com"
 git add -A
-git commit -qm "Axell De-Reverb v$VER" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -qm "Axell De-Reverb v$VER"
 git tag "v$VER"
 git remote add origin "https://github.com/zmardanian/axell-dereverb.git"
 echo "Public repo ready: $PUB (commit $(git rev-parse --short HEAD), tag v$VER, remote origin set, NOT pushed)"

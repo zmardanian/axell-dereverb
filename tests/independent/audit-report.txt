@@ -22,4 +22,4 @@ PASS  dry voice (ARCTIC slt, no room): left essentially untouched: SI-SDR 30.4 d
 PASS  dry voice (ARCTIC bdl, no room): left essentially untouched: SI-SDR 26.4 dB, largest octave-band change +0.6 dB
 PASS  dry voice (ARCTIC jmk, no room): left essentially untouched: SI-SDR 21.6 dB, largest octave-band change +0.7 dB
 
-ALL PASS: 21 of 21 independent checks passed (14 s)
+ALL PASS: 21 of 21 independent checks passed (17 s)

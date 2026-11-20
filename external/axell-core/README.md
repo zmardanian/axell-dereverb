@@ -16,5 +16,5 @@ Shared code of the Axell plugins and the Axell Signature Dojo (Axell's Dojo):
 - `tests/CoreTests.cpp` (124 checks): EBU Tech 3341 / 3342 loudness conformance, true-peak accuracy, dither noise
   spectrum, limiter ceilings and release behaviour, latency handshake, sibilance and voice decisions.
 
-Licence: GNU AGPLv3 (LICENSE). Fonts: Inter and Yuji Syuku (a subset, `BrushFontData.h`; Copyright 2021 The Yuji
+Licence: GNU AGPLv3 (LICENSE). Fonts: Inter, Great Vibes (a subset, `ScriptFontData.h`; Copyright 2015 The Great Vibes Pro Project Authors, SIL OFL 1.1) and Yuji Syuku (a subset, `BrushFontData.h`; Copyright 2021 The Yuji
 Project Authors), both SIL Open Font License 1.1 (resources/fonts). Contact: contact@axellsdojo.com

@@ -1,7 +1,9 @@
 #pragma once
-// Axell's Dojo - the plugin title: "Axell" in gold and the plugin's name in a brush-written face (Yuji Syuku, SIL OFL
-// 1.1), followed by a vermilion hanko seal holding the plugin's kanji. Used in the header of every Axell plugin.
+// Axell's Dojo - the plugin title: "Axell <name>" in the suite's script wordmark (Great Vibes, SIL OFL 1.1 - the same
+// face as the website and the READMEs), in the plugin's own colour, followed by a vermilion hanko seal holding its kanji
+// (brush face Yuji Syuku, SIL OFL 1.1). Used in the header of every Axell plugin.
 #include "BrushFontData.h"
+#include "ScriptFontData.h"
 #include "DojoEmblem.h"
 
 namespace axell::brand
@@ -73,24 +75,64 @@ inline void drawSeal (juce::Graphics& g, juce::Rectangle<float> r, const juce::S
     fillInk (g, k, 0.02f * s);
 }
 
-// the title: "Axell" in gold, the plugin's name in brushed ivory, the plugin's seal. `capHeight` = the name's capital
+// the script face (the wordmark)
+inline juce::Typeface::Ptr scriptTypeface()
+{
+    static juce::Typeface::Ptr tf = juce::Typeface::createSystemTypefaceFor (fontdata::greatVibes, (size_t) fontdata::greatVibesSize);
+    return tf;
+}
+// the outline of `text` in the script face, scaled so that a capital letter is `capHeight` tall, baseline at y = 0
+inline juce::Path scriptPath (const juce::String& text, float capHeight)
+{
+    using namespace juce;
+    auto font = [] (float h) { return Font (FontOptions().withTypeface (scriptTypeface()).withHeight (h)); };
+    static const float capAt100 = [&]
+    {
+        GlyphArrangement ga;
+        ga.addLineOfText (font (100.0f), "H", 0.0f, 0.0f);
+        Path p;
+        ga.createPath (p);
+        return jmax (1.0f, p.getBounds().getHeight());
+    }();
+    GlyphArrangement ga;
+    ga.addLineOfText (font (100.0f), text, 0.0f, 0.0f);
+    Path p;
+    ga.createPath (p);
+    p.applyTransform (AffineTransform::scale (capHeight / capAt100));
+    return p;
+}
+
+// each plugin's colour - the same as on axellsdojo.com and in the READMEs
+inline juce::Colour accentFor (const juce::String& name)
+{
+    using juce::Colour;
+    if (name == "Penta EQ") return Colour (0xffe2c04f);
+    if (name == "Duo Compressor") return Colour (0xffec8b42);
+    if (name == "Gate") return Colour (0xff3cc8bb);
+    if (name == "De-Reverb") return Colour (0xff62bfe9);
+    if (name == "Velvet") return Colour (0xffe893b1);
+    if (name == "Master") return Colour (0xff55c992);
+    if (name == "Space") return Colour (0xffb096f2);
+    if (name == "Forbidden Seal") return Colour (0xffe8604c);
+    return Colour (0xffd3ad66);   // the suite's gold (the Dojo)
+}
+
+// the title: "Axell <name>" in the script wordmark, in the plugin's colour, then the plugin's seal. `capHeight` = the name's capital
 // height, `baseline` its baseline. Returns the right edge.
 inline float drawTitle (juce::Graphics& g, float x, float baseline, const juce::String& name, const juce::String& kanji,
                         float capHeight = 16.5f)
 {
     using namespace juce;
-    auto small = brushPath ("Axell", 0.60f * capHeight, 0.06f);
-    auto big = brushPath (name, capHeight, -0.01f);
-    const float wA = small.getBounds().getRight(), wN = big.getBounds().getRight();
-    small.applyTransform (AffineTransform::translation (x, baseline));
-    g.setGradientFill (ColourGradient (kGoldLight, 0.0f, baseline - 0.6f * capHeight, kGoldDeep, 0.0f, baseline + 2.0f, false));
-    fillInk (g, small, 0.025f * capHeight);
-    const float xn = x + wA + 0.38f * capHeight;
-    big.applyTransform (AffineTransform::translation (xn, baseline));
-    DropShadow (Colours::black.withAlpha (0.6f), (int) (0.25f * capHeight), { 0, 1 }).drawForPath (g, big);
-    g.setGradientFill (ColourGradient (kIvory, 0.0f, baseline - capHeight, kIvoryShade, 0.0f, baseline + 0.3f * capHeight, false));
-    fillInk (g, big, 0.022f * capHeight);
-    float right = xn + wN;
+    // the script's capitals are drawn larger than a serif's to read at the same weight; its swashes reach above and below
+    auto word = scriptPath ("Axell " + name, 1.62f * capHeight);
+    const float w = word.getBounds().getRight();
+    word.applyTransform (AffineTransform::translation (x, baseline));
+    const Colour acc = accentFor (name);
+    DropShadow (Colours::black.withAlpha (0.65f), (int) (0.30f * capHeight), { 0, 1 }).drawForPath (g, word);
+    g.setGradientFill (ColourGradient (acc.brighter (0.35f), 0.0f, baseline - 1.4f * capHeight, acc.darker (0.15f), 0.0f,
+                                       baseline + 0.4f * capHeight, false));
+    g.fillPath (word);
+    float right = x + w;
     if (kanji.isNotEmpty())
     {
         const float sz = 1.32f * capHeight;

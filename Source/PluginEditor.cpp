@@ -1,4 +1,5 @@
 #include "PluginEditor.h"
+#include <axell/gui/ScreenReader.h>
 
 #include <axell/gui/BrandTitle.h>
 
@@ -110,6 +111,7 @@ DeReverbEditor::DeReverbEditor (DeReverbProcessor& p) : AudioProcessorEditor (&p
     constructed = true;
     timerCallback();
     startTimerHz (30);
+    axell::nameControlsForScreenReaders (*this);   // Narrator / VoiceOver read every control by name
 }
 
 DeReverbEditor::~DeReverbEditor()
