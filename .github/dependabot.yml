@@ -5,6 +5,8 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    cooldown:
+      default-days: 7   # never propose a release younger than a week (time for a hijacked one to be caught)
     groups:
       actions:
         patterns: ["*"]
