@@ -28,3 +28,5 @@ Sound or usability bugs are not security problems: please open a normal issue fo
 
 Every release lists the SHA256 checksum of each file in `SHA256SUMS.txt`. On Linux: `sha256sum -c SHA256SUMS.txt`;
 on Windows (PowerShell): `Get-FileHash <file> -Algorithm SHA256`.
+From the November 2026 releases on, `SHA256SUMS.txt` is also signed with the suite's release key (minisign, `SHA256SUMS.txt.minisig`):
+`minisign -Vm SHA256SUMS.txt -P RWQJLVJSETsP7RRz1rdiugX9w09wtGCtwEc5hHU8k9S+crL/ekfTkQKG`. A file that fails this check was not published by the maintainer - please report it.
