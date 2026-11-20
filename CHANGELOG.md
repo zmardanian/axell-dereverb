@@ -6,7 +6,7 @@
 - **Your DAW's preset menu shows the right factory preset after a project is reopened.** The chosen preset (the
   host's "Program") is now saved with the project and read back without re-applying it, so your settings stay exactly
   as you left them. Before, the sound was always right but the menu could show the first preset.
-- **Every control has a name for screen readers** (Narrator, VoiceOver, Orca): knobs, switches and menus announce
+- **Every control has a name for screen readers** (Windows Narrator, macOS VoiceOver): knobs, switches and menus announce
   their parameter instead of just "slider".
 - **Linux: runs on Ubuntu 22.04+, Debian 12+, Linux Mint 21+ and Fedora 36+** (built on Ubuntu 22.04).
 - The audio is byte-for-byte the same as 4.0.1 (88 renders through the released 4.0.1 and the new build: every
